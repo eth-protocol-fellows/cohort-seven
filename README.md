@@ -35,4 +35,4 @@ In addition to the weekly standup calls, we hold Office Hours calls which can be
 
 If you need any further assistance, contact cohort organizers @joshdavislight and @taxmeifyoucan on Discord.
 
-![](/images/epf7-hero.jpg)
+![](/images/epf7-hero.png)
