@@ -5,7 +5,7 @@ This repository is dedicated to coordination and resources for EPF Cohort 7
 EPF is an open fellowship program for developers aspiring to work on Ethereum core protocol, clients, research and related tooling. 
 
 > [!IMPORTANT]  
-> Read the [announcement blog]((https://blog.ethereum.org/2026/04/30/epf-7)) and [submit your application](https://epf.wiki/#/wiki/epf)!
+> Read the [announcement blog](https://blog.ethereum.org/2026/04/30/epf-7) and [submit your application](https://epf.wiki/#/wiki/epf)!
 
 Learn more about EPF in [Program details](./program-guide/program-details.md), watch the [intro to the current cohort](TBD) and learn about achievements of the previous one in [cohort 6 recap](https://ps.ethereum.foundation/blog/epf6-recap).
 
