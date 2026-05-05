@@ -45,3 +45,20 @@ Explore Robus Incentives Group Opened Problems. Most relevant for EPF are tagged
 
 Client teams will submit cohort 7 project ideas via pull request to this document. If you represent a client or research team and want to propose a project, open a PR adding a section here or reach out to the cohort organizers on Discord.
 
+### Erigon: aglean — Lean client permutations and stability
+
+By Giulio Rebuffo / Erigon
+
+[aglean](https://github.com/erigontech/aglean) is a Python Lean Ethereum consensus client together with an AI-driven cross-language generation framework. Today the repository already has a working Python implementation, fixture verification, and a live local-devnet sync path. The next step is to develop it further into a stronger EPF project by adding actual implementation permutations and improving overall stability.
+
+This project is about turning aglean from a one-shot client-porting demo into a more serious client-diversity engine. In particular, the work could include:
+
+- defining real interchangeable subspec permutations instead of a single baseline implementation,
+- improving stability and reproducibility of generated clients and verification runs,
+- strengthening fixture and devnet-based test harnesses for correctness and interoperability,
+- and making it easier to try architectural alternatives without rewriting the entire client.
+
+Examples of such alternatives include different storage backends, sync strategies, and other subsystem-level design choices that can expand the permutation space while keeping the same protocol behavior.
+
+This project is a good fit for fellows interested in Lean Ethereum, client diversity, testing infrastructure, and AI-assisted client implementation.
+
