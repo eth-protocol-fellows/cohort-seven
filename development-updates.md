@@ -26,7 +26,8 @@ Phase one is the very beginning of the cohort. The first few weeks are dedicated
 | [Josh](https://github.com/JO-OLADEJI)           | [Update 0](https://hackmd.io/@hiOAMmPVSB6rKJF3A0TJIA/By6GJsnZGx)                                    |        |        |
 | [Keshav](https://www.github.com/keshavsharma25) | [Update 0](https://hackmd.io/@keshav0x/SJpIr3UWfl)                                                  |        |        |
 | [Kris](https://github.com/krisoshea-eth/)       | [Update 0](https://hackmd.io/@krisos/rJZ18M_-fg)                                                    |        |        |
-| [Kimi](https://github.com/KimiWu123)            | [Update 0](https://hackmd.io/@kimiwu/Bk3E5QRWzl)                                                    | [Update 1](https://hackmd.io/@kimiwu/rJ432fGzfx)       |        |
+| [Kimi](https://github.com/KimiWu123)            | [Update 0](https://hackmd.io/@kimiwu/Bk3E5QRWzl)                                                    | [Update 1](https://hackmd.io/@kimiwu/rJ432fGzfx)
+| [Kapil](https://github.com/Kapil-K-Kathiriya)   |                                                                                                     | [Update 1](https://hackmd.io/@kapilkmr/rJPl3lizMx)     |        |
 | [Mario](https://github.com/taxmeifyoucan/)      | [ Update 0](https://notes.ethereum.org/@MarioHavel/week0)                                           |        |        |
 | [Marko](https://github.com/markolazic01)        | [Update 0](https://hackmd.io/@lqzic/week-0-update)                                                  | [Update 1](https://hackmd.io/@lqzic/week-1-update)       |        |
 | [Meek](https://github.com/mmsaki)               | [Update 0](https://hackmd.io/@YBDu_chCTnKXFnYTkux9tQ/HJ5Rqa1zzx)                                     | [Update 1](https://hackmd.io/@YBDu_chCTnKXFnYTkux9tQ/rJvMCpJzfg) |        |
