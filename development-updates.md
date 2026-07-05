@@ -77,7 +77,7 @@ With the gained insight into the protocol, the following weeks serve as a deep d
 | [Cristian](https://github.com/conache/)              |                                                  |        |        |                  |
 | [Daniel](https://github.com/perfogic)                | [Update 3](https://hackmd.io/@perfogic/rkJxeWdXMe) |        |        |                  |
 | [Hans](https://github.com/vuonghuuhung)              |                                                  |        |        |                  |
-| [Ifeoluwa](https://github.com/owanikin)              |                                                  |        |        |                  |
+| [Ifeoluwa](https://github.com/owanikin)              | [Update 3](https://hackmd.io/@ZpBFaS-NSO-5Xkdm4jwolg/B1SI4r_mze)                                                 |        |        |                  |
 | [Isaac](https://github.com/isaac-akhigbe)            |                                                  |        |        |                  |
 | [Ivan](https://github.com/IvanAnishchuk)             |                                                  |        |        |                  |
 | [Ivan B](https://github.com/IvanBelyakoff)           |                                                  |        |        |                  |
