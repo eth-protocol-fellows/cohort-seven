@@ -116,55 +116,10 @@ With the gained insight into the protocol, the following weeks serve as a deep d
 
 The actual project development is the main part of the program. Post your regular progress updates here during the development phase, share your issues and successes with others.
 
-| Name/GH                                              | Week 3                                           | Week 4 | Week 5 | Project Proposal |
-| ---------------------------------------------------- | ------------------------------------------------ | ------ | ------ | ---------------- |
-| [Aarish](https://github.com/aarishnaiyer)            |                                                  |        |        |                  |
-| [Abhivansh](https://github.com/akronim26)            |                                                  |        |        |                  |
-| [Aiden](https://github.com/sgtSong)            |                                                  |        |        |                  |
-| [Arsh](https://github.com/ArshLabs)                  |                                                  |        |        |                  |
-| [Astrion](https://github.com/astrion-coder)          |                                                  |        |        |                  |
-| [Ayush](https://github.com/0xAysh/)                  |                                                  |        |        |                  |
-| [Bankat](https://github.com/mananuf/)                |                                                  |        |        |                  |
-| [Blessing](https://github.com/dicethedev/)           |                                                  |        |        |                  |
-| [Charles](https://github.com/creese)                 |                                                  |        |        |                  |
-| [Conall](https://github.com/XRS-001/)                |                                                  |        |        |                  |
-| [Cristian](https://github.com/conache/)              |                                                  |        |        |                  |
-| [Daniel](https://github.com/perfogic)                |                                                  |        |        |                  |
-| [Hans](https://github.com/vuonghuuhung)              |                                                  |        |        |                  |
-| [Ifeoluwa](https://github.com/owanikin)              |                                                  |        |        |                  |
-| [Isaac](https://github.com/isaac-akhigbe)            |                                                  |        |        |                  |
-| [Ivan](https://github.com/IvanAnishchuk)             |                                                  |        |        |                  |
-| [Ivan B](https://github.com/IvanBelyakoff)           |                                                  |        |        |                  |
-| [Jack CC](https://github.com/JackCC703/)             |                                                  |        |        |                  |
-| [Jeff](https://www.github.com/jeffoodchain)          |                                                  |        |        |                  |
-| [Josh](https://github.com/JO-OLADEJI)                |                                                  |        |        |                  |
-| [Kapil](https://github.com/Kapil-K-Kathiriya)        |                                                  |        |        |                  |
-| [Keshav](https://www.github.com/keshavsharma25)      |                                                  |        |        |                  |
-| [Kimi](https://github.com/KimiWu123)                 |                                                  |        |        |                  |
-| [Kris](https://github.com/krisoshea-eth/)            |                                                  |        |        |                  |
-| [Mario](https://github.com/taxmeifyoucan/)           |                                                  |        |        |                  |
-| [Marko](https://github.com/markolazic01)             |                                                  |        |        |                  |
-| [Mary](https://github.com/maryodior)                 |                                                  |        |        |                  |
-| [Meek](https://github.com/mmsaki)                    |                                                  |        |        |                  |
-| [Mohit](https://github.com/groverInnovate)           |                                                  |        |        |                  |
-| [Parth](https://github.com/ParthSinghPS)             |                                                  |        |        |                  |
-| [Parth Dagia](https://github.com/parthdagia05)       |                                                  |        |        |                  |
-| [Rahul](https://github.com/rahulbarmann/)            |                                                  |        |        |                  |
-| [Raphina](https://github.com/stamp9/)                |                                                  |        |        |                  |
-| [Ray](https://github.com/rayjun)                     |                                                  |        |        |                  |
-| [Richard](https://github.com/richardgreg)            |                                                  |        |        |                  |
-| [Ritesh](https://github.com/Dyslex7c)                |                                                  |        |        |                  |
-| [Roheemah](https://github.com/AbolareRoheemah)       |                                                  |        |        |                  |
-| [Sagar](https://www.github.com/SoarinSkySagar)       |                                                  |        |        |                  |
-| [Sahil](https://github.com/Sahilgill24)              |                                                  |        |        |                  |
-| [Sameer](https://github.com/SamAg19)                 |                                                  |        |        |                  |
-| [Soham](https://github.com/zemse)                    |                                                  |        |        |                  |
-| [Skas](https://www.github.com/Skanislav)             |                                                  |        |        |                  |
-| [Steven](https://github.com/stevemilk)               |                                                  |        |        |                  |
-| [Tosin](https://www.github.com/tosynthegeek)         |                                                  |        |        |                  |
-| [Vansh](https://github.com/vanshsahay)               |                                                  |        |        |                  |
-| [Vivek Singh Solanki](https://github.com/vivek-0509) |                                                  |        |        |                  |
-| [Zidan](https://github.com/mzf11125)                 |                                                  |        |        |                  |
+
+| Name/GH | Week 6 | Week 7 | Week 8 | Week 9 | Week 10 | Week 11 | Week 12 | Week 13 | Week 14 | Week 15 | Week 16 | Week 17 | Week 18 | Week 19 | Week 20 | Week 21 + |
+| ------- | ------ | ------ | ------ | ------ | ------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- | --------- |
+|         |        |        |        |        |         |         |         |         |         |         |         |         |         |         |         |           |
 
 ## Cohort end
 
