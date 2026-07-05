@@ -67,7 +67,7 @@ With the gained insight into the protocol, the following weeks serve as a deep d
 | [Aarish](https://github.com/aarishnaiyer)            |                                                  |        |        |                  |
 | [Abhivansh](https://github.com/akronim26)            |                                                  |        |        |                  |
 | [Aiden](https://github.com/sgtSong)            |                                                  |        |        |                  |
-| [Arsh](https://github.com/ArshLabs)                  |                                                  |        |        |                  |
+| [Arsh](https://github.com/ArshLabs)                  | [Update 3](https://hackmd.io/@arshlabs/HklneUmO7zx)             |        |        |                  |
 | [Astrion](https://github.com/astrion-coder)          |                                                  |        |        |                  |
 | [Ayush](https://github.com/0xAysh/)                  |                                                  |        |        |                  |
 | [Bankat](https://github.com/mananuf/)                |                                                  |        |        |                  |
@@ -75,7 +75,7 @@ With the gained insight into the protocol, the following weeks serve as a deep d
 | [Charles](https://github.com/creese)                 |                                                  |        |        |                  |
 | [Conall](https://github.com/XRS-001/)                |                                                  |        |        |                  |
 | [Cristian](https://github.com/conache/)              |                                                  |        |        |                  |
-| [Daniel](https://github.com/perfogic)                |                                                  |        |        |                  |
+| [Daniel](https://github.com/perfogic)                | [Update 3](https://hackmd.io/@perfogic/rkJxeWdXMe) |        |        |                  |
 | [Hans](https://github.com/vuonghuuhung)              |                                                  |        |        |                  |
 | [Ifeoluwa](https://github.com/owanikin)              |                                                  |        |        |                  |
 | [Isaac](https://github.com/isaac-akhigbe)            |                                                  |        |        |                  |
