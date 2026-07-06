@@ -100,7 +100,7 @@ The actual project development is the main part of the program. Post your regula
 | [Mary](https://github.com/maryodior)                 |                                                  |        |        |                  |
 | [Meek](https://github.com/mmsaki)                    |                                                  |        |        |                  |
 | [Mohit](https://github.com/groverInnovate)           |                                                  |        |        |                  |
-| [Parth](https://github.com/ParthSinghPS)             |                                                  |        |        |                  |
+| [Parth](https://github.com/ParthSinghPS)             | [Update 3](https://hackmd.io/@ParthSinghPS/SJ-pRiuQGg) |        |        |                  |
 | [Parth Dagia](https://github.com/parthdagia05)       |                                                  |        |        |                  |
 | [Rahul](https://github.com/rahulbarmann/)            |                                                  |        |        |                  |
 | [Raphina](https://github.com/stamp9/)                |                                                  |        |        |                  |
