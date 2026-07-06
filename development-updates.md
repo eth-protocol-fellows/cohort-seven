@@ -115,7 +115,7 @@ The actual project development is the main part of the program. Post your regula
 | [Skas](https://www.github.com/Skanislav)             |                                                  |        |        |                  |
 | [Steven](https://github.com/stevemilk)               |                                                  |        |        |                  |
 | [Tosin](https://www.github.com/tosynthegeek)         | [Update 2 & 3](https://hackmd.io/@tosynthgeek/rylPjYv7Mg)                                   |        |        |                  |
-| [Vansh](https://github.com/vanshsahay)               |                                                  |        |        |                  |
+| [Vansh](https://github.com/vanshsahay)               | [Update 3](https://hackmd.io/@vanshsahay/Bk1rs4GXGx) |        |        |                  |
 | [Vivek Singh Solanki](https://github.com/vivek-0509) |                                                  |        |        |                  |
 | [Zidan](https://github.com/mzf11125)                 |                                                  |        |        |                  |
 
