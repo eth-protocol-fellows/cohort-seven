@@ -78,7 +78,7 @@ With the gained insight into the protocol, the following weeks serve as a deep d
 | [Daniel](https://github.com/perfogic)                | [Update 3](https://hackmd.io/@perfogic/rkJxeWdXMe) |        |        |                  |
 | [Hans](https://github.com/vuonghuuhung)              | [Update 3](https://hackmd.io/@hansvuong/r1xrMLc_mMl)                                                 |        |        |                  |
 | [Ifeoluwa](https://github.com/owanikin)              | [Update 3](https://hackmd.io/@ZpBFaS-NSO-5Xkdm4jwolg/B1SI4r_mze)                                                 |        |        |                  |
-| [Isaac](https://github.com/isaac-akhigbe)            |                                                  |        |        |                  |
+| [Isaac](https://github.com/isaac-akhigbe)            |  [Update 3](https://hackmd.io/@isaac-akhigbe/H1J2XC9Xfg)                                                |        |        |                  |
 | [Ivan](https://github.com/IvanAnishchuk)             |                                                  |        |        |                  |
 | [Ivan B](https://github.com/IvanBelyakoff)           |                                                  |        |        |                  |
 | [Jack CC](https://github.com/JackCC703/)             | [Update 3](https://hackmd.io/@jackcc/epf7-week3) |        |        |                  |
