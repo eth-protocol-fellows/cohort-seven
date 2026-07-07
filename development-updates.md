@@ -89,7 +89,7 @@ The actual project development is the main part of the program. Post your regula
 | [Ivan](https://github.com/IvanAnishchuk)             |                                                  |        |        |                  |
 | [Ivan B](https://github.com/IvanBelyakoff)           |                                                  |        |        |                  |
 | [Jack CC](https://github.com/JackCC703/)             | [Update 3](https://hackmd.io/@jackcc/epf7-week3) |        |        |                  |
-| [Jeff](https://www.github.com/jeffoodchain)          |                                                  |        |        |                  |
+| [Jeff](https://www.github.com/jeffoodchain)          | [Update 3](https://hackmd.io/CQHLdvEjSam2nn3zkLhNYA) |        |        |                  |
 | [Josh](https://github.com/JO-OLADEJI)                |                                                  |        |        |                  |
 | [Kapil](https://github.com/Kapil-K-Kathiriya)        |                                                  |        |        |                  |
 | [Keshav](https://www.github.com/keshavsharma25)      |                                                  |        |        |                  |
