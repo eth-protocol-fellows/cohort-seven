@@ -99,7 +99,7 @@ With the gained insight into the protocol, the following weeks serve as a deep d
 | [Rahul](https://github.com/rahulbarmann/)            | [Update 3](https://hackmd.io/@rahulbarman/SydhimimGl)            |        |        |                  |
 | [Raphina](https://github.com/stamp9/)                |                                                                  |        |        |                  |
 | [Ray](https://github.com/rayjun)                     |                                                                  |        |        |                  |
-| [Richard](https://github.com/richardgreg)            |                                                                  |        |        |                  |
+| [Richard](https://github.com/richardgreg)            | [Update 3](https://richardgreg.github.io/ethereum-protocol-fellowship/2026/06/30/week-3.html) |        |        |                  |
 | [Ritesh](https://github.com/Dyslex7c)                |                                                                  |        |        |                  |
 | [Roheemah](https://github.com/AbolareRoheemah)       | [Update 3](https://hackmd.io/@rhorheeymarh/HJaGVJYQMe)           |        |        |                  |
 | [Sagar](https://www.github.com/SoarinSkySagar)       | [Update 3](https://hackmd.io/@SoarinSkySagar/r1ieE-u7Ml)         |        |        |                  |
