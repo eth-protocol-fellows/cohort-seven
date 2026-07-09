@@ -109,7 +109,7 @@ With the gained insight into the protocol, the following weeks serve as a deep d
 | [Steven](https://github.com/stevemilk)               |                                                  |        |        |                  |
 | [Tosin](https://www.github.com/tosynthegeek)         | [Update 2 & 3](https://hackmd.io/@tosynthgeek/rylPjYv7Mg)                                   |        |        |                  |
 | [Vansh](https://github.com/vanshsahay)               | [Update 3](https://hackmd.io/@vanshsahay/Bk1rs4GXGx) |        |        |                  |
-| [Vivek Singh Solanki](https://github.com/vivek-0509) |                                                  |        |        |                  |
+| [Vivek Singh Solanki](https://github.com/vivek-0509) | [Update 3](https://hackmd.io/@h2RUkQVmStGWLVKk0Ne1uQ/SJ-HrihXze) |        |        |                  |
 | [Zidan](https://github.com/mzf11125)                 | [Update 3](https://hackmd.io/@MpYoLwpETrKvUBs2PpmPxA/B1DpcZ5Xfe) |        |        |                  |
 
 
