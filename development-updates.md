@@ -68,7 +68,7 @@ With the gained insight into the protocol, the following weeks serve as a deep d
 | [Aarish](https://github.com/aarishnaiyer)            |                                                                  |        |        |                  |
 | [Abhivansh](https://github.com/akronim26)            | [Update 3](https://hackmd.io/@astaxxoo/HJAX2VtQfg)               |        |        |                  |
 | [Aiden](https://github.com/sgtSong)                  |                                                                  |        |        |                  |
-| [Arsh](https://github.com/ArshLabs)                  | [Update 3](https://hackmd.io/@arshlabs/HklneUmO7zx)              |        |        |                  |
+| [Arsh](https://github.com/ArshLabs)                  | [Update 3](https://hackmd.io/@arshlabs/HklneUmO7zx)              | [Update 4](https://hackmd.io/@arshlabs/B1m1FC0Qfx) |        |                  |
 | [Astrion](https://github.com/astrion-coder)          | [Update 3](https://hackmd.io/@Astrion/BJ0TicqmGl)                |        |        |                  |
 | [Ayush](https://github.com/0xAysh/)                  | [Update 3](https://hackmd.io/@0xAysh/EPF-7-week-3-update)        |        |        |                  |
 | [Bankat](https://github.com/mananuf/)                |                                                                  |        |        |                  |
