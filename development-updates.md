@@ -94,7 +94,7 @@ With the gained insight into the protocol, the following weeks serve as a deep d
 | [Mary](https://github.com/maryodior)                 | [Update 3](https://hackmd.io/@x68iqv9FTyOkG8bkePB-mw/BJv8c69XMl) |        |        |                  |
 | [Meek](https://github.com/mmsaki)                    |                                                                  |        |        |                  |
 | [Mohit](https://github.com/groverInnovate)           |                                                                  |        |        |                  |
-| [Parth](https://github.com/ParthSinghPS)             | [Update 3](https://hackmd.io/@ParthSinghPS/SJ-pRiuQGg)           |        |        |                  |
+| [Parth](https://github.com/ParthSinghPS)             | [Update 3](https://hackmd.io/@ParthSinghPS/SJ-pRiuQGg)           | [Update 4](https://hackmd.io/@ParthSinghPS/SJOphFCmMg) |        |                  |
 | [Parth Dagia](https://github.com/parthdagia05)       | [Update 3](https://hackmd.io/@lw7hY5nDSFS83Br8wInrJg/S1OvQVu7Me) |        |        |                  |
 | [Rahul](https://github.com/rahulbarmann/)            | [Update 3](https://hackmd.io/@rahulbarman/SydhimimGl)            |        |        |                  |
 | [Raphina](https://github.com/stamp9/)                |                                                                  |        |        |                  |
