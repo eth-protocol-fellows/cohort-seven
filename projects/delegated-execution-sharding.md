@@ -42,14 +42,19 @@ I will specify viable implementations for all four of these cases, while utilizi
 
 **Week 5-7:**
 * Specify an implementation of the naive general case, with quantitative analysis of its technical overhead, various trade-offs and scalability improvements
+* 
 **Week 8-10**:
 * Specify an implementation of the special-purpose case, with analysis of technical overhead, trade-offs, and scalability improvements
+* 
 **Week 11-13**:
 * Specify an implementation of the rollup-centric case, with analysis of its differences to the current model, technical overhead, trade-offs, scalability improvements
+* 
 **Week 14-16**:
 * Specify an implementation of the theoretically optimal general case, with analysis of its technical overhead, trade-offs, major bottlenecks, theoretically optimal scalability improvements, and potential solutions to the various challenges
+* 
 **Week 17-21**:
 * Reflections, finishing touches, and potential work overflow buffer
+* 
 ## Possible challenges
 
 There are many technical challenges implicit in trying to implement this form of execution sharding:
