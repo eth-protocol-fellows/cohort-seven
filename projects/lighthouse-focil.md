@@ -90,7 +90,7 @@ Integrate Heze Engine API methods:
 ### Fork choice
 
 - Add a `payload_il_satisfied` flag on `ProtoNode`. 
-- Record the flag once per payload at envelope reveal, from `engine_newPayloadV6`'s `inclusionListSatisfied` response field (evaluated agains the previous slot's IL transactions). Blocks imported during sync rather than from live gossip (including optimistic imports) default to satisfied: view-based enforcement does not apply retroactively.
+- Record the flag once per payload at envelope reveal, from `engine_newPayloadV6`'s `inclusionListSatisfied` response field (evaluated against the previous slot's IL transactions). Blocks imported during sync rather than from live gossip (including optimistic imports) default to satisfied: view-based enforcement does not apply retroactively.
 - Update `should_extend_payload` to refuse extending IL-unsatisfied payloads.
 
 ### Block production
@@ -156,6 +156,7 @@ Add validator endpoints for the IL committee duties:
 - The FOCIL spec is still actively changing, so our work will need to adapt to spec updates.
 - Gloas is still under active development in Lighthouse, and we need to make sure that our changes are correctly integrated with the latest Gloas work.
 - Dependency on the EIP-7688's forward compatible consensus data structures work: `InclusionList.transactions` is a `ProgressiveList`, and that support is still in draft in Lighthouse, so we will adapt as it evolves.
+- Interop and end-to-end testing depend on an EL client that supports the Heze engine methods. Although the support is emerging and is being worked on, for now we will test against Lighthouse's mock EL, which we will extend ourselves.
 
 ## Goal of the project
 
