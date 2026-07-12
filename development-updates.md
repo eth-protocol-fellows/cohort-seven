@@ -102,7 +102,7 @@ With the gained insight into the protocol, the following weeks serve as a deep d
 | [Richard](https://github.com/richardgreg)            | [Update 3](https://richardgreg.github.io/ethereum-protocol-fellowship/2026/06/30/week-3.html) |        |        |                  |
 | [Ritesh](https://github.com/Dyslex7c)                |                                                                  |        |        |                  |
 | [Roheemah](https://github.com/AbolareRoheemah)       | [Update 3](https://hackmd.io/@rhorheeymarh/HJaGVJYQMe)           |        |        |                  |
-| [Sagar](https://www.github.com/SoarinSkySagar)       | [Update 3](https://hackmd.io/@SoarinSkySagar/r1ieE-u7Ml)         |        |        |                  |
+| [Sagar](https://www.github.com/SoarinSkySagar)       | [Update 3](https://hackmd.io/@SoarinSkySagar/r1ieE-u7Ml)         | [Update 4](https://hackmd.io/@SoarinSkySagar/ByUDGwW4fx) |        |                  |
 | [Sahil](https://github.com/Sahilgill24)              |                                                                  |        |        |                  |
 | [Sameer](https://github.com/SamAg19)                 |                                                                  |        |        |                  |
 | [Soham](https://github.com/zemse)                    | [Update 3](https://hackmd.io/@zemse/r1dqoWK7Gx)                  | [Update 4](https://hackmd.io/@zemse/HkNAYmZVzl)        |        |                  |
