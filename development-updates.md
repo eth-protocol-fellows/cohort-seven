@@ -77,7 +77,7 @@ With the gained insight into the protocol, the following weeks serve as a deep d
 | [Conall](https://github.com/XRS-001)                 |                                                                  |[Update 4](https://docs.fileverse.io/d/02001110002a#k=igG0pvX8y_LUvXXaKpu0gBrHgMIzcv-VCmRXEsOF_MU) | | |
 | [Cristian](https://github.com/conache/)              | [Update 3](https://hackmd.io/@conache/BkU585LXMe)                | [Update 4](https://hackmd.io/@conache/ByNLEikEfl) |        |                  |
 | [Daniel](https://github.com/perfogic)                | [Update 3](https://hackmd.io/@perfogic/rkJxeWdXMe)               |        |        |                  |
-| [Hans](https://github.com/vuonghuuhung)              | [Update 3](https://hackmd.io/@hansvuong/r1xrMLc_mMl)             |        |        |                  |
+| [Hans](https://github.com/vuonghuuhung)              | [Update 3](https://hackmd.io/@hansvuong/r1xrMLc_mMl)             |[Update 4](https://hackmd.io/@hansvuong/rJlZw0WVMg)        |        |                  |
 | [Ifeoluwa](https://github.com/owanikin)              | [Update 3](https://hackmd.io/@ZpBFaS-NSO-5Xkdm4jwolg/B1SI4r_mze) |        |        |                  |
 | [Isaac](https://github.com/isaac-akhigbe)            | [Update 3](https://hackmd.io/@isaac-akhigbe/H1J2XC9Xfg)          |        |        |                  |
 | [Ivan](https://github.com/IvanAnishchuk)             |                                                                  |        |        |                  |
