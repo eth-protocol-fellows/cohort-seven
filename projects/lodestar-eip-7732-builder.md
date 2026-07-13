@@ -162,7 +162,10 @@ The project is successful if Lodestar has a working, tested, and documented hone
 
 - Reproducible local end-to-end demo with a real local execution client.
 - Configurable bid policy plus bid/win/reveal/timing logs and metrics.
-- One or more PRs merged or in review, a Heze / FOCIL adaptation pass if FOCIL has merged to `unstable` and Lodestar team discussions make it useful, and a final write-up of what existed, what was added, and what remains.
+- One or more PRs merged or in review.
+- Heze / FOCIL adaptation pass if FOCIL has merged to `unstable` (blocked by [FOCIL](https://github.com/ChainSafe/lodestar/pull/7342)).
+- Server-side of the builder api and serve trustless bids via api (blocked by [client-side builder api](https://github.com/ChainSafe/lodestar/pull/9594) + specs).
+- Final write-up of what existed, what was added, and what remains.
 
 **Stretch success:**
 
