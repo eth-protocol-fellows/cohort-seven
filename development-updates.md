@@ -82,7 +82,7 @@ With the gained insight into the protocol, the following weeks serve as a deep d
 | [Isaac](https://github.com/isaac-akhigbe)            | [Update 3](https://hackmd.io/@isaac-akhigbe/H1J2XC9Xfg)          |        |        |                  |
 | [Ivan](https://github.com/IvanAnishchuk)             |                                                                  |        |        |                  |
 | [Ivan B](https://github.com/IvanBelyakoff)           |                                                                  |        |        |                  |
-| [Jack CC](https://github.com/JackCC703/)             | [Update 3](https://hackmd.io/@jackcc/epf7-week3)                 |        |        |                  |
+| [Jack CC](https://github.com/JackCC703/)             | [Update 3](https://hackmd.io/@jackcc/epf7-week3)                 | [Update 4](https://hackmd.io/@jackcc/epf7-week4) |        |                  |
 | [Jeff](https://www.github.com/jeffoodchain)          | [Update 3](https://hackmd.io/CQHLdvEjSam2nn3zkLhNYA)             |        |        |                  |
 | [Josh](https://github.com/JO-OLADEJI)                |                                                                  |        |        |                  |
 | [Kapil](https://github.com/Kapil-K-Kathiriya)        |                                                                  |        |        |                  |
