@@ -172,7 +172,7 @@ The project is successful if Lodestar has a working, tested, and documented hone
 - Builder-adversarial Deathstar matrix with one or two implemented scenarios.
 - Deeper write-up of builder bidding constraints under ePBS and follow-up issues for future adversarial builder work.
 - Run a kurtosis devnet with lodestar builder and Buildoor, consistently out-bid Buildoor's bids and get selected.
-- Do not blindly reveal envelope when there is a win. Optionally withhold the envelope when weak proposer's block is detected (this is research focused task, there is no danger of payload being stolen as Lodestar does not include mev or private txs).
+- Research and potentially introduce envelope withholding when early attester signals suggest a weak proposer block (note that there is no unbundling risk in Lodestar and keep in mind that withholding payload on a future canonical block results in a fund loss).
 
 ## Collaborators
 
