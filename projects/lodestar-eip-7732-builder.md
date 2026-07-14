@@ -164,7 +164,7 @@ The project is successful if Lodestar has a working, tested, and documented hone
 - Heze / FOCIL adaptation pass ([dependency](https://github.com/ChainSafe/lodestar/pull/7342)).
 - Server-side of the builder api and serve trustless bids via api (blocked by [client-side builder api](https://github.com/ChainSafe/lodestar/pull/9594) + specs).
 - Final write-up of what existed, what was added, and what remains.
-- Advanced payload preparation strategy / preparing payload based on proposer preferences prediction, potentially preparing multiple payloads ([see more](https://github.com/eth-protocol-fellows/cohort-seven/pull/161#discussion_r3574786863)).
+- Advanced payload preparation: predict whether the proposer will build on the FULL or EMPTY parent and prepare payloads ahead of time, potentially multiple per slot ([see more](https://github.com/eth-protocol-fellows/cohort-seven/pull/161#discussion_r3574786863)).
 
 **Stretch success:**
 
