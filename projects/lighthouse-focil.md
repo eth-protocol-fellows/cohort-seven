@@ -4,7 +4,7 @@
 
 - **FOCIL (EIP-7805)** strengthens Ethereum's censorship resistance: a 16-validator committee broadcasts inclusion lists (ILs) each slot, and fork choice refuses to extend payloads that omit the timely IL transactions.
 - FOCIL is scheduled for the **Heze** fork, layered on top of the changes introduced by [ePBS](https://eips.ethereum.org/EIPS/eip-7732) in Gloas.
-- Lighthouse does not yet implement FOCIL.
+- Lighthouse has no FOCIL support yet, though prior work exists in the [`focil` branch](https://github.com/sigp/lighthouse/tree/focil), a FOCIL implementation (in prototype phase) built on top of the Gloas changes. We can leverage this to build a production-ready implementation.
 
 ## Project description
 
@@ -19,6 +19,13 @@ Full FOCIL support will be implemented in Lighthouse in the following areas:
 7. **Interop (stretch)**: a local devnet run against another FOCIL-ready client (Lodestar), demonstrating IL propagation and censoring-payload rejection.
 
 The full design (flows, store design, each change rationale per subsystem) is detailed in our [annotated design document](https://hackmd.io/@conache/HyDlczNXGl).
+
+We will use the exploratory `focil` branch as a reference rather than a base branch: for each task, we assess what can be reused (or where a better approach exists), bring it up to the current spec, and land the changes as incremental PRs through a proper review cycle. The rest we build from scratch.
+
+From our initial assessment of the branch so far:
+- **Areas with reusable parts**: the IL store, gossip verification, req/resp serving, the validator duties and production flow, and block production.
+- **Completely missing**: the bid-bits gossip check and IL backfilling.
+- **Needs rework or completion**: spec drift (signing domain, `ProgressiveList` SSZ types, the engine API's IL-satisfaction integration, the `payload_attributes` SSE event), fork-choice satisfaction tracking, unfinished IL publish, testing and interop coverage.
 
 We will follow the FOCIL specs across the CL and its EL integration:
 - [CL spec (Heze)](https://github.com/ethereum/consensus-specs/tree/master/specs/heze)
@@ -199,4 +206,5 @@ Success criteria:
 - [Engine API spec PR](https://github.com/ethereum/execution-apis/pull/609)
 - [Heze consensus specs](https://github.com/ethereum/consensus-specs/tree/master/specs/heze)
 - [Lighthouse Heze boilerplate PR](https://github.com/sigp/lighthouse/pull/9573)
+- [Lighthouse FOCIL tracking issue](https://github.com/sigp/lighthouse/issues/6660) and the exploratory [`focil` branch](https://github.com/sigp/lighthouse/tree/focil)
 - [`ProgressiveList` support in Lighthouse (via the EIP-7688 PR)](https://github.com/sigp/lighthouse/pull/9450)
