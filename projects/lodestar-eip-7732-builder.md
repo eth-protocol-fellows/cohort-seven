@@ -161,7 +161,7 @@ The project is successful if Lodestar has a working, tested, and documented hone
 - Reproducible local end-to-end demo with a real local execution client.
 - Configurable bid policy plus bid/win/reveal/timing logs and metrics.
 - One or more PRs merged or in review.
-- Heze / FOCIL adaptation pass if FOCIL has merged to `unstable` (blocked by [FOCIL](https://github.com/ChainSafe/lodestar/pull/7342)).
+- Heze / FOCIL adaptation pass ([dependency](https://github.com/ChainSafe/lodestar/pull/7342)).
 - Server-side of the builder api and serve trustless bids via api (blocked by [client-side builder api](https://github.com/ChainSafe/lodestar/pull/9594) + specs).
 - Final write-up of what existed, what was added, and what remains.
 - Advanced payload preparation strategy / preparing payload based on proposer preferences prediction, potentially preparing multiple payloads ([see more](https://github.com/eth-protocol-fellows/cohort-seven/pull/161#discussion_r3574786863)).
@@ -172,7 +172,7 @@ The project is successful if Lodestar has a working, tested, and documented hone
 - Builder-adversarial Deathstar matrix with one or two implemented scenarios.
 - Deeper write-up of builder bidding constraints under ePBS and follow-up issues for future adversarial builder work.
 - Run a kurtosis devnet with lodestar builder and Buildoor, consistently out-bid Buildoor's bids and get selected.
-- Do not blindly reveal envelope when there is a win. Optionally withhold the envelop when weak proposer's block is detected (this is research focused task, there is no danger of payload being stolen as Lodestar does not include mev or private txs).
+- Do not blindly reveal envelope when there is a win. Optionally withhold the envelope when weak proposer's block is detected (this is research focused task, there is no danger of payload being stolen as Lodestar does not include mev or private txs).
 
 ## Collaborators
 
