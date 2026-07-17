@@ -197,7 +197,7 @@ The wider impact is to give Erigon a concrete, testable starting point for SSZ-n
 
 ### Fellows
 
-This is currently planned as an individual EPF project. Where the interfaces overlap, I plan to coordinate with [SoarinSkySagar](https://github.com/SoarinSkySagar). The SSZ Query Language project can consume the root/proof interface produced here, while its query syntax, query semantics, and implementation remain a separate deliverable.
+This is currently planned as an individual EPF project.
 
 ### Mentors
 
