@@ -197,7 +197,7 @@ The wider impact is to give Erigon a concrete, testable starting point for SSZ-n
 
 ### Fellows
 
-This is currently planned as an individual EPF project.
+[Jack](https://github.com/JackCC703)
 
 ### Mentors
 
