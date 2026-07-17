@@ -8,13 +8,13 @@ Ethereum currently uses different serialization and commitment schemes across it
 
 [EIP-7807](https://eips.ethereum.org/EIPS/eip-7807) proposes migrating execution blocks to an SSZ representation. It introduces an SSZ-native execution block root and forward-compatible field and list layouts based on `ProgressiveContainer` and `ProgressiveList`. This would make individual execution block fields easier to prove, bring the Execution Layer and Consensus Layer data models closer together, and provide foundations for more efficient Engine API and verifiable RPC designs.
 
-The project focuses on Erigon because it already contains substantial SSZ infrastructure in Caplin and its Engine API code, but its canonical execution block model remains RLP/MPT-oriented. The missing piece is an explicit, tested mapping from Erigon execution data to the EIP-7807 layout, together with the progressive Merkleization, root calculation, generalized-index mapping, and proof interfaces required to inspect that layout.
-
-The affected protocol area is the Execution Layer block representation and its boundary with SSZ-based proof and API infrastructure. The initial project will not replace Erigon's current consensus-critical block hash or block import path. Instead, it will build and validate a parallel EIP-7807 root and proof surface that can be reviewed before deeper protocol integration.
-
 ## Project description
 
 I propose to implement the Erigon-side foundations for EIP-7807 SSZ execution blocks.
+
+The project focuses on Erigon because it already contains substantial SSZ infrastructure in Caplin and its Engine API code, but its canonical execution block model remains RLP/MPT-oriented. The missing piece is an explicit, tested mapping from Erigon execution data to the EIP-7807 layout, together with the progressive Merkleization, root calculation, generalized-index mapping, and proof interfaces required to inspect that layout.
+
+The affected protocol area is the Execution Layer block representation and its boundary with SSZ-based proof and API infrastructure. The initial project will not replace Erigon's current consensus-critical block hash or block import path. Instead, it will build and validate a parallel EIP-7807 root and proof surface that can be reviewed before deeper protocol integration.
 
 The project will first map Erigon's existing `Header`, `Block`, transaction, receipt, withdrawal, execution request, and block access list data to the EIP-7807 `ExecutionPayload` structure. It will then add the progressive SSZ Merkleization support required by EIP-7807, compute an SSZ execution block root from existing Erigon block data, and validate the result with deterministic fixtures and an independent reference implementation.
 
