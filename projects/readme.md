@@ -13,6 +13,7 @@ To create a project, write your proposal based on [template](./project-template.
 - [Etheorem: Lean 4 consensus-spec proofs](./etheorem-consensus-proofs-lean4.md) - Ivan Anishchuk and Raj Gill
 - [Grandine Lean Client](./Grandine-Lean-Client.md) - Sagar Rana
 - [Lodestar EIP-7732 Builder](./lodestar-eip-7732-builder.md) - Kris O'Shea and Marko Lazic
+- [SSZ Execution Blocks (EIP-7807) for Geth](./geth-ssz-execution-blocks-eip-7807.md) - Vivek Singh Solanki
 - [Pureth in Reth: SSZ Execution Blocks and Query Language](./pureth-in-reth.md) - Arsh and Parth Singh
 - [Teku Light Client Protocol](./Teku_Light_Client_Protocol.md) - Abhivansh
 - [Post-Quantum Stealth Addresses as an ERC-5564 Scheme Extension](./pa-sap.md) - Skas
