@@ -8,3 +8,4 @@ To create a project, write your proposal based on [template](./project-template.
 
 - [Erigon SSZ Execution Blocks and EIP-7807](./erigon-ssz-execution-blocks-eip-7807.md) - Jack CC
 - [Lodestar EIP-7732 Builder](./lodestar-eip-7732-builder.md) - Kris O'Shea and Marko Lazic
+- [Teku Light Client Protocol](./Teku_Light_Client_Protocol.md) - Abhivansh
