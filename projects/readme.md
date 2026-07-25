@@ -6,6 +6,7 @@ To create a project, write your proposal based on [template](./project-template.
 
 ## Project proposals
 
+- [EIP-8304: Trustless log and transaction index](./eip-8304-trustless-log-index.md) - Vansh Sahay
 - [Erigon SSZ Execution Blocks and EIP-7807](./erigon-ssz-execution-blocks-eip-7807.md) - Jack CC
 - [Grandine Lean Client](./Grandine-Lean-Client.md) - Sagar Rana
 - [Lodestar EIP-7732 Builder](./lodestar-eip-7732-builder.md) - Kris O'Shea and Marko Lazic
