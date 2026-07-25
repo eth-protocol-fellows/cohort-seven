@@ -150,6 +150,7 @@ Lean targets a 4 second slot, with 3-slot finality. There are 5 intervals and ea
 
 ### Strong success
 
+- Negligible delay (under 1ms) for CL EL communication.
 - Interop with other lean clients supporting EL e.g. EthLambda to run long running devnets.
 - Benchmark report quantifying latency and delays in validator duties under defined load.
 - Ream devnet supporting type-3 transactions, if PeerDAS support is added in Ream.
