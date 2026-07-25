@@ -4,21 +4,7 @@ Embed Reth directly into the Ream binary, as a library so that the full CL+EL co
 
 ## Motivation
 
-After 7-8 years of R&D development, the "Merge" upgrade, i.e. first step of the end game shipped on September 15, 2022.
-
-### The good
-
-The "Merge" upgrade brought a lot of benefits instantly like drop in energy usage, better security economics, finality and much more.
-
-### The bad
-
-Before the "Merge" upgrade, running an Ethereum node that syncs mainnet was simply running a binary with some flags. Post upgrade, running a node means running two binaries with the JWT auth setup. 
-
-For staking validator nodes (or the pre-merge mining nodes) the setup steps were anyway a lot, so it doesn't matter if you have to run two binaries or four. But for hobbyist that want to manually run a non-validating Ethereum node, unexpectedly more steps involved.
-
-### The ugly
-
-This CL <> EL communication involves a lot of steps. It mostly works apart from the JSON encode-decode that costs a considerable CPU time (up to 1s), eating into slot time budget. 
+The engine API communication between CL and EL involves a lot of steps. It is mostly fine, apart from the JSON encode-decode that costs a considerable CPU time (up to 1s in some situations), eating into slot time budget. 
 
 ```mermaid
 sequenceDiagram
@@ -37,20 +23,6 @@ sequenceDiagram
       Note over CL: JSON decode RESP
       Note over CL: Compute
 ```
-
-### Public reactions
-
-Many folks have been vocal about this:
-
-> "We can verify ethereum with a single binary and deprecate the engine API" -- [Alex Stokes | EF](https://x.com/ralexstokes/status/1748779711394677041)
-
-> "The Merge introduced insane complexity not only for UX of running a node, but also for testing and debugging the protocol" -- [Andrei | Ipsilon](https://x.com/gumb00/status/2033494724795879570?s=20)
-
-> "JSON is a the most significant bottleneck there (up to 1s on geth of overhead)" -- [Giulio | Erigon](https://x.com/GiulioRebuffo/status/2047816897031217616?s=20)
-
-> "EngineAPI was the worst possible glue regarding complexity and performance (JSON-RPC for private communication, seriously?)" -- [Hai | RISE](https://x.com/hai_rise/status/2033522025642524854?s=20)
-
-> "Running two daemons and getting them to talk to each other is far more difficult than running one daemon" -- [Vitalik | EF](https://x.com/VitalikButerin/status/2033016131884376541?s=20)
 
 ### Potential solutions considered by the community
 
@@ -102,7 +74,7 @@ The `NodeBuilder` gives a `Node`, that is to be owned by the binary's `main` fun
 
 The Reth `Node`'s `exit_future` should be handled, for the case the node crashes. The `Node` does not need to be explicitly stopped, it stops when the variable is dropped i.e. the `main` function returns.
 
-Disable Type-3 transactions to start with, until PeerDAS is supported in Lean chain. 
+To start with disable Type-3 transactions, until PeerDAS is supported in Ream. After that enable it to support for blob transactions. 
 
 ### Lean
 
@@ -123,7 +95,7 @@ Handle the `on_block` to verify the EL payload and call fork choice updated.
 
 ## Roadmap
 
-### Week 0-4: Prior work
+### Week 0-5: Prior work
 
 - [Deep Dive](https://hackmd.io/@Ayhm2-FHQhSLkoc1OEcr9g/BkgIVxNV-Ge).
 - [High Level Plan](https://hackmd.io/Z3km32ovRAiAdS6X9yzsKw).
@@ -134,13 +106,9 @@ Handle the `on_block` to verify the EL payload and call fork choice updated.
 - Pass the reth handle to the lean chain service.
 - Integrate into methods like `handle_produce_block` and `on_block` to call the reth engine API.
 
-### Week 5: Proposal and Scope
-
-- Finalize the proposal.
-
 ### Week 6-8: Initial prototype
 
-- Harden the prototype with testing.
+- Harden the prototype with testing and running local devnets.
 - Have the initial prototype reviewed.
 
 ### Week 9-10: Devnet + wallet demo
@@ -184,7 +152,7 @@ Lean targets a 4 second slot, with 3-slot finality. There are 5 intervals and ea
 
 - Interop with other lean clients supporting EL e.g. EthLambda to run long running devnets.
 - Benchmark report quantifying latency and delays in validator duties under defined load.
-- Ream devnet supporting type-3 transactions.
+- Ream devnet supporting type-3 transactions, if PeerDAS support is added in Ream.
 
 ## Collaborators
 
