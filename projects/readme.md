@@ -12,3 +12,4 @@ To create a project, write your proposal based on [template](./project-template.
 - [Pureth: Erigon SSZ Query Language](./Erigon-SSZ-Query-Language.md) - Sagar Rana
 - [Pureth in Reth: SSZ Execution Blocks and Query Language](./pureth-in-reth.md) - Arsh and Parth Singh
 - [Teku Light Client Protocol](./Teku_Light_Client_Protocol.md) - Abhivansh
+- [Ream BlackBox Interop Testing](./Ream-BlackBosx-Interop-Testing.md) - Mohit
