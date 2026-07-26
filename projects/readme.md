@@ -8,6 +8,7 @@ To create a project, write your proposal based on [template](./project-template.
 
 - [Erigon SSZ Execution Blocks and EIP-7807](./erigon-ssz-execution-blocks-eip-7807.md) - Jack CC
 - [Erigon SSZ Query Language](./Erigon-SSZ-Query-Language.md) - Sagar Rana
+- [Etheorem: Lean 4 consensus-spec proofs](./etheorem-consensus-proofs-lean4.md) - Ivan Anishchuk and Raj Gill
 - [Grandine Lean Client](./Grandine-Lean-Client.md) - Sagar Rana
 - [Lodestar EIP-7732 Builder](./lodestar-eip-7732-builder.md) - Kris O'Shea and Marko Lazic
 - [Pureth in Reth: SSZ Execution Blocks and Query Language](./pureth-in-reth.md) - Arsh and Parth Singh
