@@ -1,6 +1,6 @@
-# EIP-8304: Trustless log and transaction index
+# Geth - EIP-8304: Trustless log and transaction index
 
-Make log retrieval verifiable without trusting an RPC provider.
+Make log retrieval verifiable without trusting an RPC provider
 
 ## Motivation
 
@@ -32,11 +32,11 @@ execution block header
 
 EIP-8304 commits to the address, topics, and position of a log, but not directly to `log.data`. Verifying a complete log therefore also requires a block entry to authenticate the target block header, a transaction entry to authenticate the transaction hash and index, and a receipt proof against the target `receiptsRoot`. The project covers this full chain.
 
-There are roughly four work streams. Some already have code, some are greenfield.
+There are roughly four work streams. I handle the geth implementation (streams 1, 2, and 4). Skas handles the client-side verification (stream 3).
 
 **1. Polish the geth PoC**
 
-Vansh already built a working PoC on the `8304` branch. It does index building for levels 0 and 1, posts table roots to the system contract during `PostExecution`, serves `eth_getLogProof`, and has a basic verifier. But it's a proof of concept: fixed 64-byte entries, flat Keccak256 over concatenated bytes instead of SSZ merkleization, everything in memory, and only two table levels active.
+A working PoC already exists on the `8304` [branch](https://github.com/VanshSahay/go-ethereum/tree/8304). It does index building for levels 0 and 1, posts table roots to the system contract during `PostExecution`, serves `eth_getLogProof`, and has a basic verifier. It is a proof of concept: fixed 64-byte entries, flat Keccak256 over concatenated bytes instead of SSZ merkleization, everything in memory, and only two table levels active.
 
 The goal is to bring it up to production quality:
 
@@ -59,7 +59,7 @@ The proof format covers inclusion, exclusion, and completeness. Inclusion works 
 
 The MVP scope: bounded block ranges, limited OR conditions, topic wildcards, pagination, empty results. Out of scope: `pending` blocks, subscriptions, `removed` logs, queries with no filter conditions, and blocks beyond the ring buffer window.
 
-**3. Client-side verification (TypeScript + viem)**
+**3. Client-side verification (TypeScript + viem) - Skas**
 
 A standalone `@pureth/log-proof` package that verifies the complete proof chain: storage proofs, index proofs, range completeness, block and transaction entries, receipt proofs, and full log contents including `log.data`. The verifier separately reports whether the proof is valid and whether the query is complete. The caller must independently verify that the block header belongs to the canonical chain and whether it is safe or finalized, a storage proof alone cannot perform those checks.
 
@@ -73,9 +73,11 @@ Spin up a geth + nimbus devnet with kurtosis. Run it through assertoor: send tra
 
 The core verification is two independent EL clients producing identical table roots for the same chain history. If geth and another client agree on every root at every level, the spec is correct and the implementation is solid. An independent root calculator (a minimal program that takes a block range and receipts and computes the expected roots) serves as a lightweight tiebreaker.
 
-**The filtermaps overlap**
+**Relationship to existing filtermaps**
 
-Geth's `core/filtermaps` package already exists on master. It was written by Zsolt. It builds filter maps, a two-layer structure with SHA256-hashed rows and epoch-based tail pruning. `eth_getLogs` uses it today for fast queries. The `MatcherBackend` interface in that package has a comment that says: "once EIP-7745 is implemented and active, these functions can also be trustlessly served by a remote prover." For this project we stay focused on 8304 as specified
+Geth's [`core/filtermaps`](https://github.com/ethereum/go-ethereum/tree/master/core/filtermaps) package already provides fast log queries on master. It builds a two-layer structure with SHA256-hashed rows and epoch-based tail pruning. Its `MatcherBackend` interface notes that it could serve trustless proofs once a consensus commitment exists.
+
+This project implements 8304 as a new, separate index. The existing filtermaps code is left untouched. Whether the two indexes eventually share infrastructure or converge is an open question.
 
 ## Specification
 
@@ -97,7 +99,7 @@ Five levels, exponentially growing block ranges. Each level is a sorted table of
 
 ### Entry format
 
-Each entry is 64 bytes right now. The spec calls for variable-length encoding (38/40/52 bytes depending on type). We start fixed and migrate.
+The current PoC uses fixed 64-byte entries for simplicity. The spec calls for variable-length encoding (38/40/52 bytes depending on type), which reduces storage per entry and keeps table sizes manageable at higher levels. Milestone 1 migrates from the fixed format to the variable-length format.
 
 ```
 [0]       entry type (1 byte)
@@ -141,8 +143,8 @@ The verifier:
 
 1. Fetches the trusted `tableRoot` from the system contract (eth_call or eth_getProof)
 2. Recomputes the SSZ root from `sortedEntries` and checks it matches, verifying the entry count
-3. Checks the match range: everything inside matches, nothing outside does
-4. For completeness: verifies predecessor/successor boundary proofs and cross-table range coverage
+3. Checks the match range: everything inside `[matchStart, matchEnd)` matches, nothing outside does. Boundary entries at `matchStart - 1` and `matchEnd` are included in the proof so the verifier can confirm the range is correct
+4. For cross-table queries, checks that each table's root is verified and the covered block ranges union to the full requested range with no gaps
 5. If matchStart is -1, scans to confirm no entry matches
 6. Verifies receipt proofs against `receiptsRoot` for each returned log to authenticate `log.data`
 
@@ -162,7 +164,7 @@ Close the open questions before writing any real code.
 - Define fork activation, system-contract deployment, entry-count semantics, query and pagination semantics, safe/finalized requirements, and the responsibilities of each component.
 - Decide the RPC method name and parameter format. Settle on `pureth_getLogsWithProofV1` with a versioned schema.
 - Set performance baselines: maximum query ranges, result counts, proof bytes, proof-generation and verification latency, consensus overhead, disk growth, and rebuild time.
-- Get a devnet running. Vansh already has a geth binary that deploys the contract at genesis and posts roots.
+- Get a devnet running. I already have a geth binary that deploys the contract at genesis and posts roots.
 
 Risks: EIP-8304 is still a Draft and parameters may change. A storage proof cannot prove a block header is canonical, so the verifier's scope boundary must be clearly stated.
 
@@ -214,7 +216,7 @@ Risks: devnet and end-to-end testing may expose cross-component integration prob
 
 **PoC performance.** The multi-block merge is O(n) per level. The flat Keccak256 over all entries gets expensive for level 4 tables covering 256 blocks. Everything sits in memory. SSZ merkleization helps with hashing since you can incrementally update the tree instead of rehashing the whole thing. File-backed storage and the ring buffer fix the memory problem. But there are probably surprises that haven't been encountered yet.
 
-**Implementation consistency.** Differences in encoding, sorting, hashing, SSZ length handling, table merging, or write timing will cause root mismatches across implementations. We retain intermediate entries, leaf hashes, and roots and use EELS fixtures plus an independent root calculator to identify the first point of divergence. `simpleserialize.com` helps debug SSZ serialization differences.
+**Implementation consistency.** Differences in encoding, sorting, hashing, SSZ length handling, table merging, or write timing will cause root mismatches across implementations. We retain intermediate entries, leaf hashes, and roots and use EELS fixtures plus an independent root calculator to identify the first point of divergence. [simpleserialize.com](https://simpleserialize.com) helps debug SSZ serialization differences.
 
 **Query completeness.** This is harder than inclusion. Multi-condition queries, OR conditions, wildcards, empty results, pagination, and cross-table coverage all need boundary and range proofs, counterexamples, and fuzzing. The completeness proof must cover every query branch.
 
@@ -222,9 +224,11 @@ Risks: devnet and end-to-end testing may expose cross-component integration prob
 
 **Background merging.** Multi-block table construction must handle deadlines, disk usage, restarts, and reorgs without affecting the consensus-critical path. The merge cannot block block production.
 
-**The filtermaps overlap.** Geth already has a log index in `core/filtermaps`. 8304 builds a different one. Long term these probably converge: the filtermaps data structure plus 8304-style consensus commitment. For now we implement 8304 as specified and document the integration point.
+**The filtermaps overlap.** Geth already has a log index in [`core/filtermaps`](https://github.com/ethereum/go-ethereum/tree/master/core/filtermaps). This project builds 8304 as a separate, parallel index. Filtermaps is not modified. Whether the two converge later is an open question outside this project's scope.
 
 **Gas cost.** Every block does at least one SSTORE for the level 0 table root. We need hard numbers on the per-block overhead to make the case to validators.
+
+**Scope.** The geth implementation spans consensus-level changes, SSZ merkleization, proof-index design, RPC API design, and devnet testing. The client-side verification (TypeScript, viem) is handled separately by Skas. Milestones are sequenced so each stage produces a working checkpoint. If scope needs to be cut later, the RPC is versioned, the verifier is standalone, and filtermaps is untouched, so earlier milestones remain usable.
 
 ## Goal of the project
 
@@ -238,25 +242,20 @@ A devnet with geth committing the correct table roots and serving verifiable log
 
 ## Collaborators
 
-
-
 ### Fellows
 
-- Vansh Sahay ([@vanshsahay](https://github.com/vanshsahay))
-
-
+- Vansh Sahay ([@vanshsahay](https://github.com/vanshsahay)) — geth implementation, proof index, RPC, devnet
+- Skas ([@Skanislav](https://github.com/Skanislav)) — client-side verification, viem integration
 
 ### Mentors
 
 - Tamaghna Choudhuri ([@RazorClient](https://github.com/RazorClient))
 
-
-
 ## Resources
 
 - [EIP-8304 specification PR](https://github.com/ethereum/EIPs/pull/11811)
 - [EIP-8304 discussion on Ethereum Magicians](https://ethereum-magicians.org/t/eip-8304-trustless-log-and-transaction-index/28824)
-- [Vansh's PoC on the 8304 branch](https://github.com/VanshSahay/go-ethereum/tree/8304)
+- [My PoC on the 8304 branch](https://github.com/VanshSahay/go-ethereum/tree/8304)
 - [Implementing EIP-8304 and SSZ in the Execution Layer](https://hackmd.io/@zBK5wwtLTrqYmlLNZd8CPA/rJpY1JOQMl)
 - [8304 performance notes](https://gist.github.com/zsfelfoldi/3d22525b5732a9540bb9d9961ed5d238)
 - [EIP-7919 (Pureth Meta)](https://eips.ethereum.org/EIPS/eip-7919)
@@ -274,4 +273,3 @@ A devnet with geth committing the correct table roots and serving verifiable log
 - [viem](https://viem.sh)
 - [micro-eth-signer](https://github.com/paulmillr/micro-eth-signer)
 - [ACDE 239: EIP-8304 segment](https://www.youtube.com/live/Y1r-O9Vdl7I?si=RiuG8FOOxcNJ3LJZ&t=1729)
-
