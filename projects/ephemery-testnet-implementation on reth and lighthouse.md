@@ -38,7 +38,7 @@ On startup, the client calculates the current period iteration from the base gen
 
 A genesis.json will be hardcoded into Reth's genesis resources folder alongside other predefined networks. Since most of the genesis content (alloc, contract state, configuration) is constant across all periods, and the only fields that change every iteration are the chainId and the timestamp, on startup, the genesis struct is loaded and run through a function that overwrites these two fields to match the current period. The corrected genesis is what gets passed to the node launcher.
 
-One notable difference is that in Reth, predefined networks  are registered as `NamedChain` variants, but Ephemery's chainId changes every period so it cannot be registered this way. Instead, the chain will use `ChainKind::Id` with the dynamically calculated chainId. This means the chain identification, display name, and any logic that depends on chain matching needs to work through the raw ID rather than a named variant.
+One notable difference is that in Reth, predefined networks are registered as `NamedChain` variants, but Ephemery's chainId changes every period so it cannot be registered this way. Instead, the chain will use `ChainKind::Id` with the dynamically calculated chainId. This means the chain identification, display name, and any logic that depends on chain matching needs to work through the raw ID rather than a named variant.
 
 **Consensus Layer (Lighthouse)**
 
@@ -53,7 +53,7 @@ At startup, a config update function calculates the current period iteration usi
 
 These three fields are overwritten to reflect the current Ephemery period, regardless of what is in the configuration file.
 
-The approach on Lighthouse is to bundle a base `ephemery.yaml` with `genesis_0` values and then run it through an update function at startup that overwrites the `depositChainId`, `depositNetworkId`, and `minGenesisTime` based on the calculated iteration. The genesis.ssz and bootnodes are fetched remotely from `ephemery.dev/latest/` since both change every period and cannot be bundled. A default checkpoint sync URL will also be set so users don't need to provide one. The corrected config and fetched genesis state are then passed to the beacon chain initializer.
+The approach on Lighthouse is to bundle a base `ephemery.yaml` with `genesis_0` values and then run it through an update function at startup that overwrites the `depositChainId`, `depositNetworkId`, and `minGenesisTime` based on the calculated iteration. The genesis.ssz and bootnodes are fetched remotely from `ephemery.dev/latest/` since both change every period and cannot be bundled. A default checkpoint sync URL will also be set so users don't need to provide one. The corrected config and fetched genesis state are then passed to the beacon chain initializer. Before use, the downloaded state is deserialized and validated by checking that fields like `genesis_time` and `depositChainId` match what the local period calculation produced, ensuring that the fetched state is correct and consistent with the current network iteration.
 
 ### Full Support (Reset Function) - Secondary Goal
 
@@ -83,13 +83,11 @@ Previous fellows contributed PRs to both [Reth](https://github.com/paradigmxyz/r
 
 - **Weeks 11-14 (September - early October):** Testing and validating genesis on both clients.
   - Making sure the EL and CL genesis outputs are compatible and that a node can bootstrap onto Ephemery with just a flag.
-  - Adding tests that cover genesis derivation across different period iterations.
+  - Adding tests and test fixtures that cover genesis derivation across different period iterations, with CI compatibility.
   - Working through PR feedback from the Reth and Lighthouse maintainers.
+  - Beginning feasibility research into the reset function, understanding how each client handles shutdown, database cleanup, and re-initialization internally.
 
-- **Weeks 15-17 (October):** Looking into the reset function as a stretch goal.
-  - Understanding how each client handles shutdown, database cleanup, and re-initialization internally.
-  - Figuring out if runtime state rollback is even possible without restarting the process.
-  - If it is, starting a proof of concept on one or both clients.
+- **Weeks 15-17 (October):** If the reset is feasible, starting a proof of concept on one or both clients. Otherwise, focusing on hardening the genesis implementation and addressing any remaining PR feedback.
 
 - **Weeks 18-19 (late October - first week of November):** Wrapping up remaining review feedback and getting PRs to a mergeable state.
 
@@ -110,7 +108,7 @@ This project is considered successful when:
 - Reth and Lighthouse can both run the Ephemery testnet natively through a simple CLI flag without any manual configuration.
 - Both clients can deterministically generate the correct genesis state for any given network iteration.
 - The EL and CL genesis outputs are compatible and a full node pair can bootstrap onto Ephemery out of the box.
-- Tests are in place covering genesis derivation across different period iterations.
+- Test fixtures and CI-compatible tests are in place covering genesis derivation across different period iterations.
 - The implementation aligns with the [EIP-6916](https://eips.ethereum.org/EIPS/eip-6916) specification, and any findings during the process are fed back to improve the spec.
 
 Beyond the core goals, if time permits:
