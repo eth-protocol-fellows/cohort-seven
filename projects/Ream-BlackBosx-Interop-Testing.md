@@ -41,7 +41,7 @@ sequenceDiagram
 | Test | What it proves | How |
 |---|---|---|
 | **Proposal-leaf non-reuse** | A validator client should  never produce two distinct valid proposal signatures with the same key and slot | Test will trigger repeated or concurrent proposal attempts at slot N with different contents and will assert that at most one distinct block is signed |
-| **Key exhaustion** | A client stops signing cleanly once a key's validity window ends instead of  crashing or any misbehaviour | A  purpose-built key will be used with a short known window which will advance past the end and confirm that  a bounded clean refusal is done |
+| **Key exhaustion** | A client stops signing cleanly once a key's validity window ends instead of  crashing or any misbehaviour | A cleint starts from pre-computed near exhaustion checkpoint which will then advance past the end and confirm that  a bounded clean refusal is done |
 
 An acceptable client may refuse the second signing request, return the previously cached signed block, or report that the slot has already been consumed. The essential invariant is that it must not produce two different valid proposal signatures for the same key and slot.
 
