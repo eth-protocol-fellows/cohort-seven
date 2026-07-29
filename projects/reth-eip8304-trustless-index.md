@@ -33,7 +33,21 @@ Two deliberate differences from the parent project idea, both to be confirmed wi
 1. EIP-8304 rather than 7745 or 7745b. EIP-8304 is the newer proposal by the same author and is expected to supersede 7745. Building on it aims for longer-term relevance if it becomes the adopted approach.
 2. reth rather than Geth or Nimbus. The Pureth work already runs a reth track ("[Pureth in Reth](./pureth-in-reth.md)," the SSZ execution blocks and SSZ query language effort in a shared reth fork). An EIP-8304 implementation in reth is intended to complement that track rather than stand apart from it.
 
-This project therefore sits inside the Pureth: Trustless Log Index area, next to the sibling SSZ tracks, and is coordinated with the Pureth-in-reth effort and with the parallel FilterMaps work.
+This project therefore sits inside the Pureth: Trustless Log Index area, next to the sibling SSZ tracks. Pureth is two components by design. The SSZ execution blocks and query language work belongs to Arsh and Parth Singh, and the Trustless Log Index is the component this project fills.
+
+#### Overlap and coordination
+
+There is no overlap in what the two reth projects build, and the distinction holds even though both use SSZ, read logs, and target reth.
+
+The question each answers is different. The SSZ execution blocks work authenticates a single field inside a receipt the verifier has already identified, for example proving that a given log carries a given address. This project is the discovery layer. It finds which blocks and transactions a topic or address appears in across a range, and proves the returned set is complete. Field authentication against a known object versus discovery across many blocks.
+
+The layer each touches is different, which is the strongest point. The SSZ execution blocks work is explicit that existing canonical MPT roots stay unchanged. It is an RPC and provider layer serving proofs over data that already exists, with no consensus change. This project is a Core EIP that commits new state, the index table roots, into a system contract during block processing. One side touches RPC, providers, and primitives, the other touches block execution and a system contract.
+
+Even the SSZ structures differ. The SSZ execution blocks work builds a tree of the receipt object so a verifier can walk into a field. This project builds a list of index-entry hashes so a verifier can prove an entry exists in a sorted table. The same hashing tools over different shapes.
+
+The only shared surface is small and unavoidable. Both read the same reth receipt and log primitives, and both use the same SSZ hashing libraries. This project does not reuse the receipt schema from the SSZ execution blocks work, because its entries are their own encoding hashed into their own tables. The coordination point is therefore to share receipt-primitive access and SSZ tooling in the common reth fork rather than duplicate them.
+
+The two layers also compose. Discovery finds the receipt, and the SSZ query layer proves a field inside it, which makes them complementary halves of the same Pureth goal. A separate FilterMaps effort, coordinated earlier with Chronos, is deconflicted by agreement and is not a cohort-seven committed project, so it creates no intra-cohort overlap.
 
 ## Specification
 
