@@ -6,6 +6,7 @@ To create a project, write your proposal based on [template](./project-template.
 
 ## Project proposals
 
+- [EIP-8304: Trustless Log and Transaction Index in reth](./reth-eip8304-trustless-index.md) - Zidan
 - [Erigon SSZ Execution Blocks and EIP-7807](./erigon-ssz-execution-blocks-eip-7807.md) - Jack CC
 - [Erigon SSZ Query Language](./Erigon-SSZ-Query-Language.md) - Sagar Rana
 - [Grandine Lean Client](./Grandine-Lean-Client.md) - Sagar Rana
