@@ -2,7 +2,6 @@
 
 Making log and transaction lookups trustlessly provable by implementing EIP-8304 in reth.
 
-
 - Author: mzf11125 ([hackmd.io/@mzf11125](https://hackmd.io/@mzf11125), [github.com/mzf11125](https://github.com/mzf11125))
 - Target client: reth
 - EIP: [EIP-8304](https://eips.ethereum.org/EIPS/eip-8304) (Draft, Core, Standards Track), successor to [EIP-7745](https://eips.ethereum.org/EIPS/eip-7745), requires [EIP-4788](https://eips.ethereum.org/EIPS/eip-4788)
@@ -135,21 +134,30 @@ This sequence is not fixed and will be adjusted based on findings and mentor and
 
 ## Roadmap
 
-### Milestone 1 (largely complete): foundation crate
+Week numbers are cohort weeks. Week 6 is the week of 27 July 2026 and week 21 is the final week in mid November, which leaves 16 weeks of runway. The ranges are estimates rather than fixed dates, because milestone 2 depends on the `alloy-evm` placement decision and on mentor and maintainer feedback.
+
+| Milestone | Target weeks | Main deliverable |
+| --------- | ------------ | ---------------- |
+| 1. Foundation crate | 6 to 7 | Spec-pinned contract bytecode and worked-example conformance vectors |
+| 2. System contract and block processing | 8 to 12 | `alloy-evm` placement decision, fork gating, single-block table generation, set system call, first integration PRs |
+| 3. Merging and query proofs | 13 to 17 | Multi-level merging driven from block processing, inclusion and non-inclusion query proofs, verification path |
+| 4. Documentation and integration | 18 to 21 | Design note, trust assumptions and limitations, feedback to the EIP author, final report |
+
+### Milestone 1, weeks 6 to 7 (largely complete): foundation crate
 
 Entry extraction and encoding, table-root hashing, merging, the table store with scheduling, and set/get calldata helpers, with unit and integration tests. Remaining within this milestone: fix the contract bytecode, pin it to the spec, and add the worked-example conformance vectors.
 
-### Milestone 2: system contract and block-processing integration
+### Milestone 2, weeks 8 to 12: system contract and block-processing integration
 
 Resolve the reth-versus-`alloy-evm` placement question, add fork gating behind an experimental flag, wire single-block table generation into the block-processing path, and issue the set system call. Submit the first integration PRs.
 
-### Milestone 3: merging and query proofs
+### Milestone 3, weeks 13 to 17: merging and query proofs
 
 Drive multi-level merging from block processing with the delayed scheduling, then construct inclusion and non-inclusion query proofs and a verification path. Add integration and negative tests.
 
-### Milestone 4: documentation and integration
+### Milestone 4, weeks 18 to 21: documentation and integration
 
-Document the final approach, trust assumptions, and limitations. Update the design note. Feed the resolved open questions back to the author and the Ethereum Magicians thread. Address review feedback and prepare for integration where feasible.
+Document the final approach, trust assumptions, and limitations. Update the design note. Feed the resolved open questions back to the author and the Ethereum Magicians thread. Address review feedback and prepare for integration where feasible. Weeks 20 and 21 are held for project wrap up, the final development update, and the project showcase.
 
 ## Possible challenges
 
