@@ -2,7 +2,6 @@
 
 Making log and transaction lookups trustlessly provable by implementing EIP-8304 in reth.
 
-*EPF7 Project Proposal*
 
 - Author: mzf11125 ([hackmd.io/@mzf11125](https://hackmd.io/@mzf11125), [github.com/mzf11125](https://github.com/mzf11125))
 - Target client: reth
