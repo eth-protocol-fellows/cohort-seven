@@ -1,12 +1,13 @@
 # Time-series analysis on execution states
 
-Understanding Ethereum's execution state evolution through fine-grained and time-series analysis to support future state management proposals.
+Analysis of temporal trends in Ethereum state growth, specifically the read/write patterns and activity span of each state.
 
 ## Motivation
 
-Ethereum is moving toward higher throughput by increasing gas limit ([100+M gas/block](https://blog.ethereum.org/2026/02/18/protocol-priorities-update-2026)) and blob parameters ([EIP-7732]((https://eips.ethereum.org/EIPS/eip-7732))). At the same time, Ethereum community has been explored the mechanism to slow down state growth and reduce hardware requirements for node operators. Recent proposals such as [EIP-8037](https://eips.ethereum.org/EIPS/eip-8037), [EIP-8188](https://eips.ethereum.org/EIPS/eip-8188), [EIP-8295](https://eips.ethereum.org/EIPS/eip-8295), and [EIP-8296](https://eips.ethereum.org/EIPS/eip-8296) introduce new approaches to state management, including state tiering based on the last written block. These proposals require a better understanding of how Ethereum state evolves in practice.
+Ethereum is moving toward higher throughput by increasing gas limit ([100+M gas/block](https://blog.ethereum.org/2026/02/18/protocol-priorities-update-2026)) and blob parameters ([EIP-7732](https://eips.ethereum.org/EIPS/eip-7732)). At the same time, Ethereum community has been exploring the mechanism to slow down state growth and reduce hardware requirements for node operators. Recent proposals such as state tiering ([EIP-8037](https://eips.ethereum.org/EIPS/eip-8037), [EIP-8188](https://eips.ethereum.org/EIPS/eip-8188), [EIP-8295](https://eips.ethereum.org/EIPS/eip-8295), and [EIP-8296](https://eips.ethereum.org/EIPS/eip-8296)), or new trie structures ([EIP-8297](https://eips.ethereum.org/EIPS/eip-8297)) also require a better understanding of how Ethereum state evolves in the wild.
 
-This project aims to provied comprehensive characterization of execution states by extending prior work with fine-grained access analysis and time-series measurements. The results can serve as empirical references for ongoing discussions around state tiering, state expiry, statelessness, and future storage-related protocol upgrades.
+This project aims to provide insights on how Ethereum states have changed by analyzing the historical data. Specifically, we will provide analysis on how read-heavy and write-heavy states, dead storage, and access on publicly known contracts have evoloved and how their seasonality or trend has been changed.
+The results can serve as empirical references for ongoing discussions around state tiering, partitioned-binary tree, and future storage-related protocol upgrades.
 
 ## Project description
 
@@ -14,26 +15,35 @@ This project consists of two major parts.
 
 **The first half** reproduces the analysis presented in [*Not All State is Equal*](https://ethereum-magicians.org/t/not-all-state-is-equal/25508). Reproducing the existing results establishes a reliable analysis pipeline and validates the methodology before extending it.
 
-**The second half** expands the analysis in several directions:
-1. Separating read access patterns from write access patterns, dividing read-heavy states and read-and-write heavy states.
-2. Analyzing dependencies among storage owners, contract factories, deployment templates, and deployers to understand which entities dominate Ethereum state evolution.
-3. Investigating different activity spans (if exists) between stateless and stateful smart contracts
-4. Performing time-series analysis of newly created Ethereum states to identify long-term trends, seasonal behavior, and periods of intensive state growth.
+**The second half** expands to time-series analysis. We will analyze the temporal changes in :
+1. Read-access count and write-access count of each state (smart contracts, storage slots). We will identify periods when read-heavy or read-and-write-heavy states are dominant.
+2. Number of dead states (i.e. states that have not been active for over 1 year). We can also divide it into read-age and write-age for deeper understanding.
+3. Access count of unique contracts/storage slots [identified in prior work](https://ethresear.ch/t/the-anatomy-of-ethereum-s-state-access/25317#p-60995-who-sits-at-the-top-19). This will show the access trends across the period.
 
-Together, these analyses aim to provide a more complete picture of how Ethereum state evolves over time.
+We will discover long-term trends, seasonal behavior, and periods of intensive state growth. For the rest of the time, we will propose improvements to state-tiering ([EIP-8295](https://eips.ethereum.org/EIPS/eip-8295)) and partitioned binary tree ([EIP-8297](https://eips.ethereum.org/EIPS/eip-8297)).
 
 ## Specification
 
-The project will be implemented using a local Ethereum archive node together with custom analysis tooling.
+These are the research questions we want to explore:
+- Is there a seasonality in Ethereum state evolution? If so, what is it?
+- How many 'one-block active' accounts have ever been revisited? Is there a correlation during specific periods?
+- What distinctive cycles exist during the history of Ethereum?
+
+### Data Collection
+The data will be collected using a local Ethereum archive node together with publicly accessible data.
+- Network data will be primarily collected from [Xatu dataset](https://github.com/ethpandaops/xatu-data/tree/master) (e.g. `canonical_execution_storage_diffs` for write counts, `canonical_execution_storage_reads` for read counts). To store data from the EthPandaOps ClickHouse database, we will set up Clickhouse database locally.
+- From archive node, we will collect recent state data that is not covered by Xatu dataset, by tracing state changes for each block using Erigon trace APIs.
+-  To identify the contracts, we will use labels from [prior work]((https://ethresear.ch/t/the-anatomy-of-ethereum-s-state-access/25317#p-60995-who-sits-at-the-top-19)) by weiihann, and public datasets like [Eth-labels](https://github.com/dawsbot/eth-labels) and [Kaggle](https://www.kaggle.com/datasets/hamishhall/labelled-ethereum-addresses).
 
 ### First half (H1)
-Reimplement the analysis pipeline from the previous work.
+
+Produce an analysis pipeline based on the previous work.
 
 - Deploy and synchronize an Ethereum archive node
-- Write some codes to configure database from the node
-- Rediscover the result and analyze the result
+- Set up Clickhouse database and write scripts for data collection
+- Reproduce and validate the results from [*Not All State is Equal*](https://ethereum-magicians.org/t/not-all-state-is-equal/25508)
 
-Specifically, the analysis aimed to reproduce are:
+Specifically, the analyses to be reproduced are:
 | # | Title | Description |
 | :---: | :---: | :---: |
 | 1 | Portion of template-driven contracts | Portion of template vs. Unique bytecodes |
@@ -42,93 +52,83 @@ Specifically, the analysis aimed to reproduce are:
 | 4 | Smart contracts owned by deployer address | Distribution of deployed smart contracts owned by deployer address |
 | 5 | Smart contract sized by bytecode| Distribution of deployed smart contracts categorized by its bytecode size |
 | 6 | Stateful vs. Stateless contracts| Portion of stateful vs. stateless smart contracts|
-| 7 | Storage slot access count| Distribution of numder of access count for each storage slots|
+| 7 | Storage slot access count| Distribution of number of access count for each storage slots|
 
 </br>
 
 ### Second half (H2)
+Second half includes new time-series analysis built on the pipeline from the first half.
 
-Second half includes new analysis built on the pipeline from the first half.
+#### Access-heavy vs. Write-heavy
+For read and write counts, Erigon JSON-RPC method supports `trace_replayTransaction`, `trace_replayBlockTransactions`, and `trace_block`. From there, we can get opcode-level traces (e.g. CALL, SLOAD, SSTORE, SELFDESTRUCT, CREATE) for each storage slot. In database, we will store the number of SLOAD and SSTORE of each storage slot for read and write, respectively.
 
-#### Access-age vs. Write-age
-Prior work analyzed access patterns (read and write) as a whole. Specifically, storage slots are assessed by access time, rather than write-time. (Refer to the 7th row of above table, or [original post](https://ethereum-magicians.org/t/not-all-state-is-equal/25508#p-62266-how-actively-used-are-storage-slots-10))
+To count the read/write number of each state, accumulate the SLOAD and SSTORE count after each block. This will show the growing speed for each access type.
 
-To make granular result, we will produce
-- Storage slot access pattern by access count and write count
-    - Calculate the access count by reading each transactions inside the block, and mark it as 'written' by comparing execution state before and after the block 
+#### Number of dead states
+We first divide two different types of ages: read-age, write-age. Each age is calculated as follows:
+```
+read_age = current_block_number - last_read_block_number
+```
+Similarly,
+```
+write_age = current_block_number - last_written_block_number
+```
+Since write operation automatically requires read access to the state, we can also assume that `read_age = access_age`.
 
-#### Dependency among the states
-The prior work showed extremely skewed distribution of Ethereum states.
+To measure the read/write age of each state, update the last_read_block_number/last_written_block_number after each block. We define 'dead state' as *last_read_age > 2,618,875 (~ 1 year)*. To calculate the ratio of 'dead state', we can divide the number of dead states by the total number of explicit states.
 
-To be specific,
-- **Top 1000** smart contracts hold **~51(%)** of total storage slots
-- **Top 5** factory contracts account for **~43(%)** of all deployed smart contracts
-- **Top 10** template bytecode cover **~51(%)** of all deployed smart contracts
-- **Top 500** deployers alone are responsible for **~57.4(%)** of all smart contracts
- 
-This implies that execution state is highly dependent on few storage slot owners, factory/template creators, and contract deployers. We will try to identify those addresses using public dataset and manual back-tracking.
+If we want to show age distribution, instead we can divide the age range into :
+- 0–1 day
+- 1–7 days
+- 1 week–1 month
+- 1–6 months
+- 6–12 months
+- 1–2 years
+- \>2 years
 
-As a result, we can label the addresses and see which labels are dominant across periods.
+Furthermore, we can measure 'revisit' pattern using these datasets. We can set the threshold such that `revisit = True` if `gap = last_read_block - second_last_read_block > threshold`.
 
-#### Activity spans of stateless and stateful contracts
-Prior work showed very interesting result on activity span comparison of stateful vs. stateless smart contracts. (*Figure 19* in [prior work](https://ethereum-magicians.org/t/not-all-state-is-equal/25508))
-- Stateless contracts show narrow and longer average activity span
-- Stateful contracts show broad and shorter average activity span
+#### Access of unique address
+There are public identifiers for some Ethereum addresses ([The Anatomy of Ethereum’s State Access](https://ethresear.ch/t/the-anatomy-of-ethereum-s-state-access/25317#p-60995-who-sits-at-the-top-19), [Eth-labels](https://github.com/dawsbot/eth-labels), and [Kaggle](https://www.kaggle.com/datasets/hamishhall/labelled-ethereum-addresses)). Using these we can categorize each address into labels (e.g. token contract, DEX, builder address).
 
-The deeper analysis is yet exist, for example, the reason for different activity spans.
+For each label, we can measure total read/write access count. We can analyze which services account for the majority of transaction accesses. From there, we can analyze the trend of the state access across the period.
 
-#### Time series Analysis of newly created states
-This will be the main analysis for the project.
 
-In [EIP-8037](https://eips.ethereum.org/EIPS/eip-8037), they measured weekly growth of Ethereum states as a whole. This lacks trend, seasonality, or cycle information of the state growths. Additionally, since significant portion of accounts are active for only few blocks, we want to know when do these accounts are generated intensively.
+</br>
 
-By conducting time series analysis, we can see which is the 'hot topics' in specific period, which season is the most storage-demanding, and when does 'zero-activity' accounts are concentrated.
+Overall, we will discover the cycle, seasonality, or trend from these time-dimensional changes.
 
-Research question we want to solve:
-- Is there a seasonality in Ethereum state evolution? If so, what is it?
-- How many 'one-block active' accounts are ever been revisited? Is there a correlation with specific period?
-- What distinctive cycles exist during the history of Ethereum?
-
-By walking through these questions, we can get temporal context on state growth of Ethereum. For example, we can estimate the expected storage demand for upcoming events or issues. From there, we can estimate the gas price and ephemeral storage.
+After that, we can give a guide for ongoing research on state-tiering ([EIP-8295](https://eips.ethereum.org/EIPS/eip-8295)) and partitioned binary tree ([EIP-8297](https://eips.ethereum.org/EIPS/eip-8297)). These proposals are closely related to the state structure, so insightful analysis can help consolidating the upgrades.
 
 ## Roadmap
 
 The project is divided into four milestones.
 
-### Phase 1: Setup and H1 analysis (Week 6 - 11)
+### Phase 1: Setup and H1 analysis (Week 7 - 10)
 
 The first milestone focuses on establishing a reliable analysis pipeline.
 
 - Deploy and synchronize an Ethereum archive node
-- Build the database and preprocessing pipeline
-- Reimplement the methodology from *Not All State is Equal*
-- Reproduce the published figures and validate the results
+- Build the database and pipeline
+- Reproduce the published figures and validate the results from *Not All State is Equal*
 
 **Deliverable**: A reproducible analysis pipeline together with the reproduced results from the prior work.
 
-### Phase 2: Fine-grained state analysis (Week 12 - 15)
+### Phase 2: First half of H2 analysis (Week 11 - 14)
 
-Once the reproduction is completed, the pipeline will be extended to collect additional information that is not covered in the prior work.
+Once the reproduction is completed, we will move on to time-series analysis.
 
-- Separate read access and write access patterns
-- Measure access-age and write-age distributions
-- Analyze activity spans of stateless and stateful contracts
-- Investigate dependency among storage owners, deployers, factory contracts, and template bytecodes
-
-**Deliverable**: New datasets and statistical analyses describing fine-grained characteristics of Ethereum execution states.
-
-### Phase 3: Time-series analysis (Week 16 - Week 20)
-
-Using the datasets collected in the previous milestones, temporal analyses will be performed.
-
-- Measure historical evolution of Ethereum execution states
-- Identify trends, seasonality, and recurring cycles
-- Analyze periods of intensive state creation
-- Study revisit patterns of short-lived accounts and storage slots
+- Access-heavy vs. Write-heavy state analysis
+- Number of dead states and revisit pattern analysis
 
 **Deliverable**: A comprehensive time-series characterization of Ethereum execution state evolution.
+### Phase 3: Second half of H2 analysis & Provide suggestions (Week 15 - Week 18)
 
-### Phase 4: Documentation and publication (Week 21+)
+The rest of the H2 analyses will be covered for Phase 3. Also, we will explore EIP-8295 and EIP-8297. From there, we will derive suggestions how to incorporate temporal trend of state evolution.
+
+**Deliverable**: Suggestions for ongoing research
+
+### Phase 4: Documentation and publication (Week 19+)
 
 The final milestone focuses on making the work reproducible and useful for the community.
 
@@ -140,7 +140,7 @@ The final milestone focuses on making the work reproducible and useful for the c
 
 ## Possible challenges
 
-I already set up an synced archive node. Possible engineering challenge can be understanding a codebase of the node's implementation to know where to collect data. I will mostly discuss with AI in this part.
+I have already set up a synced archive node. Possible engineering challenge will be understanding the codebase of the node's implementation to know where to collect data. I will go through Erigon APIs to trace the state change, which can take some time.
 
 Another challenge is accurately identifying write operations at the storage-slot level. Unlike access information, write information must be inferred by comparing execution states before and after transaction execution, which may require additional preprocessing and optimization.
 
@@ -152,12 +152,8 @@ Some analyses also require identifying the real-world entities behind deployers,
 The project will be considered successful if it:
 
 - reproduces the key findings of previous Ethereum state analysis,
-- provides new measurements on write-age and access-age distributions,
-- characterizes temporal evolution of Ethereum state through time-series analysis,
-- identifies important dependency structures that influence state growth,
-- releases reproducible code and documentation for the Ethereum research community.
-
-Ultimately, the project aims to provide empirical evidence that can support future discussions on state tiering, state expiry, and other Ethereum storage optimization proposals.
+- discovers new trend in Ethereum state evolution (e.g. seasonality)
+- provides meaningful guide for bleeding edge research
 
 ## Collaborators
 
@@ -174,7 +170,9 @@ I have no mentors helping me out so far.
 - Discussions on state-expiry - https://ethereum-magicians.org/tag/state-expiry
 - *Not All State Is Equal* - https://ethereum-magicians.org/t/not-all-state-is-equal/25508
 - Existing implementation - https://github.com/weiihann/ethereum-state-analysis
+- The Anatomy of Ethereum's state access - https://ethresear.ch/t/the-anatomy-of-ethereum-s-state-access/25317
 - EIP-8037 - https://eips.ethereum.org/EIPS/eip-8037
 - EIP-8188 - https://eips.ethereum.org/EIPS/eip-8188
 - EIP-8295 - https://eips.ethereum.org/EIPS/eip-8295
 - EIP-8296 - https://eips.ethereum.org/EIPS/eip-8296
+- EIP-8297 - https://eips.ethereum.org/EIPS/eip-8297
