@@ -1,685 +1,247 @@
 # Reth: Partial Statefulness and State Expiry Prototype
 
-A partial state mode for Reth that retains all accounts, selectively stores contract storage and bytecode, makes unavailable state explicit, and uses EIP-7928 Block-Level Access Lists as a foundation for maintaining retained state.
+A partial-state mode for Reth that stores all account records while retaining storage and bytecode only for selected contracts.
 
 ## Motivation
 
-Ethereum execution clients currently operate under the assumption that a full node stores the complete live execution state locally. As the state grows, this increases disk requirements, sync costs, hardware requirements, and the long term burden of operating a node.
+Ethereum full nodes store the complete live execution state. As the state grows, disk usage, synchronization costs, and the hardware required to run a node increase.
 
-Research into state expirty and partial statelessness challenges a fundamental client assumption:
+The Geth partial-state prototype reports that storing all accounts while skipping contract storage and bytecode when no contracts are tracked can reduce disk usage from approximately ~640 GiB to ~59 GiB.
 
-> What happens when valid Ethereum state exists globally but is intentionally unavailable to a particular node?
+This project explores how to implement a similar prototype in Reth. Reth has different provider, database, and sync abstractions, so the implementation cannot be directly ported from Geth.
 
-This project explores that question in Reth.
-
-The prototype will introduce a partial-state mode in which Reth retains account information for all accounts while selectively downloading and storing contract and bytecode only for configured contracts or address ranges.
-
-The most important correctness requirement is that unavailable state must not be silently interpreted as empty state.
-
-Reth must be able to distinguish between:
-* an account or storage value that is present and empty;
-* state that has been downloaded and is locally available;
-* state that may exist but was intentionally not retained;
-* state tequired for execution but currently unavailable.
-
-This distinctions affects Reth's storage providers, snap synchronization, RPC methods, EVM execution, transaction-pool validation, Engine API behaviour, reorganization handling, and future support for state expiry.
-[EIP-7928](https://eips.ethereum.org/EIPS/eip-7928) will also be investigated as a mechanism for identifying state accessed or modified by each block and for maintaining a node's subset after its initial partial-state synchronization.
+The main correctness requirement is:
+> State that was not downloaded must not be interpreted as empty state.
 
 ## Project Description
 
-The project will implement and document a research prototype of partial statefulness in Reth.
+The project will add an experimental partial-state mode to Reth. In this mode, Reth will download and store account records for all accounts. A configurable contract filter will then determine which contracts should have their storage and bytecode downloaded.
 
-The prototype will:
-* download account information for all accounts;
-* apply a configurable retention policy to each account;
-* download storage and bytecode only for tracked contracts;
-* persist retained accounts, storage, and bytecode into Reth's database;
-* record whether omitted storage and bytecode are unavailable rather than empty;
-* propogate state-unavailability errors through provider, RPC, and execution paths;
-* ingest and retain EIP-7928 Block-Level Access Lists;
-* investigate where BAL data can maintain tracked state after synchronization;
-* measure downloaded state, skipped state, database size, and synchronization behavior.
+For tracked contracts, the node will retain: the account record, contract storage and contract bytecode. For untracked contracts, the node will retain the account record but skip its storage and bytecode.
 
-The goal is to build the client-side infrastructure required to experiment with:
-* partial state retention;
-* state availability 
-* state expiry
-* selective snap synchronization;
-* BAL-driven state maintenance;
-* unavailable state RPC semantics;
-* the assumption Reth currently makes about complete local state.
+The prototype will also make skipped state explicit. For example, requesting storage for an untracked contract should return an unavailable state error rather than zero.
 
-For every account, the node retains account-level information such as:
-* nonce;
-* balance;
-* storage root;
-* bytecode hash.
+The first success target is a local demonstration with:
 
-For tracked contracts, the node additionally retrieves and stores:
-* contract bytecode;
-* relevant storage slots.
+- one normal full-state Reth node;
+- one partial-state Reth node;
+- one configured tracked contract.
 
-For untracked contracts, the corresponding storage and bytecode are marked unavailable.
 
-**Scope Summary**
+The partial-state node should store every account, retain the tracked contract's storage and bytecode, reject requests for unavailable state, and use less disk space than the full-state node.
 
-| Area | Role in this project |
-| --- | --- |
-| Core Project | Add a working partial-state synchronization and availability path to Reth | 
-| First success target | Synchronize all accounts on a local network while retaining storage and bytecode for one configured contract |
-| Core correctness target | An RPC request for omitted state returns an explicit unavailable-state error instead of zero or empty code |
-| Strong-success extension | Use BAL data to update retained state across new canonical blocks and shallow reorganizations | 
-| Stretch work | Txpool policy, Engine API behavior, dynamic retention filters, deeper reorganization recovery |
-
-## Research Questions 
-
-**Selective synchronization**
-
-Can Reth's snap synchronization pipeline retrieve all accounts while requesting storage and bytecode only for selected contracts?
-
-**State availability**
-
-How should Reth represent the difference between an empty value and a value that was intentionally not downloaded?
-
-**Provider architecture**
-
-Which Reth storage and provider interfaces currently assume complete local state, and how can those assumptions be made explicit?
-
-**RPC and execution semantics**
-
-How should Reth behave when `eth_call`, `eth_estimateGas`, or transaction validation touches unavailable state?
-
-**State maintenance**
-
-Can EIP-7928 Block-Level Access Lists provide enough information to maintain a configured subset of state after initial synchronization?
-
-**Verification**
-
-Which correctness guarantees can a partial-state node provide locally, and which require proofs, witnesses, BAL extensions, or other protocol support?
-
-**Practical benefit**
-
-How much storage, network traffic, and synchronization work can be avoided under different retention policies?
-
-## Current State Map
-
-| Area | Current state | Remaining Project Work | 
-| --- | --- | --- |
-| Partial-state CLI | Initial `--partial-state` support added | Finalize options and validation | 
-| Contract configuration | Inline addresses and JSON file support started | Persist in `reth.toml` | 
-| Contract filters | `ContractFilter`, `ConfiguredContractFilter`, and `AllowAllContractFilter` added | Add snap compatible and future range filters |
-| Partial-state types | `PartialState` foundation added | Connect to node lifecycle | 
-| BAL history | `BalHistory` foundation added | Persistence, indexing, retention, and reorg integration | 
-| Startup visibility | Partial state startup logging added | Expose complete active retention policy | 
-| Storage API | Initial partial storage interfaces added | Finalize availability semantics | 
-| Partial snap writer | Partial snap writer | Complete database persistence and checkpoints |
-| Snap network access | Fetch-client work started | Complete account, storage, code, and trie request paths |
-| Partial downloader | Initial implementation started | Filtering, request queues, retry logic, and checkpoints |
-| Progress reporting | Initial logging started | Metrics for downloaded and skipped state |
-| RPC availability | Not yet integrated | Add explicit errors for unavailable storage and code |
-| Execution awareness | Not yet integrated | Propagate unavailable-state failures through `revm` |
-| BAL application | Not yet implemented | Filter and apply relevant block updates |
-| Reorganization handling | Not yet implemented | Add shallow reorg behavior and deep reorg fallback |
-| Devnet validation | Not yet completed | Local and Kurtosis testing |
+[EIP-7928](https://eips.ethereum.org/EIPS/eip-7928) Block-Level Access Lists may later be explored for maintaining retained state after the initial sync. BAL processing, reorg handling, txpool behaviour, and Engine API support are not part of the minimum project scope.
 
 ## Specification
 
-1. **Configuration and Retention Policy**
+**1. Configuration and Contract Filtering**
 
-Partial-state mode will be configurable through CLI flags and `reth.toml`.
-
-Initial configuration will support:
-* enabling partial-state mode
-* specifying tracked contract addresses inline
-* loading tracked addresses from a JSON file;
-* configuring BAL-history retention;
-* selecting an allow-all policy for comparison and testing.
-
-Example conceptual configuration:
+Complete the existing partial-state configuration in:
 
 ```
-[partial-state]
-enabled = true
-contracts-file = "./tracked-contracts.json"
-bal-retention = 128
+crates/node/core/src/args/partial_state.rs
+crates/cli/commands/src/node.rs`
 ```
 
-Helper APIs will expose operations such as:
+The configuration will support:
+- enabling partial-state mode;
+- providing tracked contract address;
+- loading tracked addresses from a JSON file;
+- displaying the active retention policy at startup.
 
-`is_partial_state_enabled`
-`is_partial_state_contract_tracked`
-`partial_state_bal_retention`
+The existing contract-filter abstraction will determine whether storage and bytecode should be retained for an account.
 
-The node will log the active policy during startup so that partial-state operation cannot be mistaken for ordinary full-state operation.
-
-Future filter implementations may support:
-
-* address ranges;
-* account-hash ranges;
-* storage ranges;
-* recently accessed contracts;
-* dynamically updated retention sets.
-
-These are not required for the first working prototype.
-
-2. **Contract Filters**
-
-A filter abstraction will determine which state should be retained.
-
-Initial implementations include:
-
-`ContractFilter`
-`ConfiguredContractFilter`
-`AllowAllContractFilter`
-
-Two forms of filtering may be required:
-
-* address-based filtering for user configuration and RPC behavior;
-* hash-based filtering for snap-sync account ranges and database keys.
-
-The filter must be available to:
-
-* the partial snap downloader;
-* the partial snap writer;
-* provider APIs;
-* RPC methods;
-* BAL processing;
-* execution and transaction-validation paths.
-
-3. **Partial Snap Downloader**
-
-The downloader will request account ranges from compatible snap peers.
-
-For each returned account, it will:
-
-* decode the account;
-* persist its account-level information;
-* determine whether the account is tracked;
-* queue its bytecode request when tracked and code is present;
-* queue its storage-range requests when tracked and storage is present;
-* skip those requests when the account is untracked;
-* update downloaded and skipped counters;
-* persist synchronization progress.
-
-The downloader will expose progress information similar to:
-
+Initial filter implementations include:
 ```
-Syncing: partial state download in progress 
-state=... 
-accounts=... 
-slots=... 
-slots_skipped=... 
-codes=... 
-codes_skipped=...
+ContractFilter
+ConfiguredContractFilter
+AllowAllContractFilter
 ```
 
-The implementation will track:
+**Deliverable**: Reth starts with a partial-state configuration and correctly identifies tracked and untracked contracts.
 
-* account ranges completed;
-* accounts persisted;
-* storage requests sent;
-* code requests sent;
-* storage slots downloaded;
-* storage slots skipped;
-* bytecode objects downloaded;
-* bytecode objects skipped;
-* bytes downloaded;
-* failed peer requests;
-* retry attempts;
-* database growth.
 
-4. **Partial Snap Writer**
+**2. Partial Snap Storage**
 
-A provider backed partial snap writer will persist:
-* account records;
-* selected storage slots;
-* selected bytecode;
-* synchronization checkpoints;
-* availability information required by the prototype.
-
-The first implementation should reuse Reth’s existing provider and database abstractions where possible rather than introducing an independent state database.
-
-The writer must support restart and resume behavior so partial synchronization does not always begin from the first account range.
-
-5. **Explicit State Availability**
-
-Database absence alone cannot indicate whether state is empty.
-
-For example, a missing storage entry could mean:
-
-* the storage slot is zero;
-* the slot was not downloaded;
-* the node has not yet synchronized the relevant range;
-* the state was removed by pruning;
-* the underlying database is inconsistent.
-
-The prototype will introduce explicit availability semantics.
-
-A conceptual model is: 
+Complete the partial-state storage interfaces in:
 
 ```
-enum StateAvailability<T> {
-    Available(T),
-    AvailableEmpty,
-    Unavailable,
-}
+crates/storage/storage-api/src/partial.rs
+crates/storage/provider/src/partial_snap.rs
 ```
 
-The exact Rust representation may differ according to Reth's provider interfaces.
+The partial snap writer will persist:
+- all downloaded account records;
+- storage belonging to tracked contracts;
+- bytecode belonging to tracked contracts;
+- sync progress required to resume the download.
 
-Potential provider errors include:
+The implementation will reuse Reth’s existing provider and database abstractions.
 
-`StorageUnavailable(address, slot)`
-`BytecodeUnavailable(address, code_hash)`
-`AccountStateUnavailable(address)`
-`PartialStateSyncIncomplete`
+**Deliverable**: tests can persist all accounts while selectively persisting storage and bytecode.
 
-The implementation must preserve these distinctions across storage, provider, RPC, and execution boundaries.
+**3. Selective Snap Downloading**
 
-6. **RPC Behavior**
+Complete the partial snap downloader and connect it to Reth's snap request path.
 
-RPC methods that depend only on retained account information should continue to operate normally.
+For each downloaded account, the downloader will:
+- persist the account record;
+- apply the configured contract filter;
+- request storage when the contract is tracked;
+- request the bytecode when the contract is tracked;
+- skip storage and bytecode requests when it is untracked;
+- record downloaded and skipped state.
 
-Examples include:
+Progress reporting will include:
 
-`eth_getBalance`
-`eth_getTransactionCount`
+```
+accounts_downloaded
+storage_slots_downloaded
+storage_slots_skipped
+bytecodes_downloaded
+bytecodes_skipped
+```
 
-Methods requiring potentially omitted state must be partial-state aware.
+**Deliverable**: a local partial sync downloads every account while retaining detailed state only for configured contracts.
 
-`eth_getStorageAt`
+**4. Unavailable-State Handling**
 
-For tracked and available storage, return the normal value.
+In a full-state node, a missing db value may be interpreted as an empty value. That assumption is unsafe in partial-state mode because the value may simply not have been downloaded. The prototype will introduce explicit errors for unavailable storage and bytecode, for example:
 
-For intentionally omitted storage, return an explicit unavailable-state error.
+```
+StorageUnavailable(address, slot)
+BytecodeUnavailable(address)
+```
 
-It must not return zero merely because the slot was not stored locally.
+The first RPC methods covered will be:
+```
+eth_getStorageAt;
+eth_getCode.
+```
 
-`eth_getCode`
+For retained state, these methods will behave normally.
 
-For available bytecode, return the normal code.
+For intentionally skipped state:
+`eth_getStorageAt` must not return zero;
+`eth_getCode` must not return empty bytecode;
 
-For an account known to have code whose bytecode was not retained, return an unavailable-state error.
+They will instead return a clear unavailable-state error.
 
-It must not return `0x` as though the account were an externally owned account.
+Support for `eth_call`, `eth_estimateGas`, txpool validation, and Engine API execution will only be considered after the initial provider and RPC behaviour works.
 
-`eth_call`
+**Delivarable**: tests demonstrate that empty state and unavailable state produce different results.
 
-Return a state-unavailable error if execution touches unavailable:
+**5. Measurement**
 
-* bytecode;
-* storage;
-* nested-call state;
-* dependent contract state.
+The prototype will be tested on a controlled local network.
 
-`eth_estimateGas`
+The comparison will include:
+- a normal full-state Reth node;
+- a partial-state node tracking no contracts;
+- a partial-state node tracking one or more contracts.
 
-Return a state-unavailable error when estimation cannot be completed using retained state.
+The project will measure:
+- db size
+- downloaded storage slots
+- skipped storage slots
+- downloaded bytecode
+- skipped bytecode
+- sync time
 
-The prototype will define an internal error taxonomy and map it to clear JSON-RPC errors. The error should communicate that the request failed because of the node’s local retention policy, not because the requested state is empty or the transaction reverted.
+**Delivarable**: a short report comparing full-state and partial-state sync.
 
-7. **Execution Awareness**
 
-The database interface used by `revm` must preserve unavailable-state failures.
+## Current Progress
 
-The project will identify where Reth currently performs operations equivalent to:
+The initial partial-state sync prototype is working.
 
-`missing value -> default value`
+Completed so far:
+- added partial-state config and contract filters;
+- implemented initial snap downloading and provider-backed persistence;
+- selectively retained storage and bytecode for tracked contracts;
+- added sync progress logs and skipped-state counters;
+- tested the flow in Kurtosis and added automated snap-serving tests.
 
-and determine how those paths should behave under partial-state mode.
+The next step is to validate the prototype using tracked and untracked contracts with real state changes.
 
-The initial execution target is not arbitrary execution over missing state. It is explicit failure when execution requires data that is unavailable.
+### Roadmap
 
-The project will investigate:
+**Weeks 1–8 — Initial Prototype**
+- implement config, filters, snap downloading, and persistence;
+- add progress logging and automated network tests;
+- demonstrate the flow in a two-node Kurtosis network.
 
-* propagation through revm database traits;
-* nested contract calls;
-* bytecode loading;
-* storage reads;
-* state overrides;
-* call tracing;
-* RPC error conversion.
+**Deliverable**: working partial-state sync prototype.
 
-8. **Transaction-Pool and Engine API Behavior**
+**Weeks 9–12 — Selective Retention Validation**
+- test tracked and untracked contracts;
+- verify which storage and bytecode are retained or skipped;
+- improve error handling and sync reliability
 
-Transaction-pool and Engine API integration will be treated as a gated extension after storage, sync, and RPC behavior work reliably.
+**Deliverable**: reproducible selective-retention test.
 
-Questions include:
+**Weeks 13–16 — Unavailable-State Handling**
+- distinguish unavailable storage and bytecode from empty state
+- update `eth_getStorageAt` and `eth_getCode`.
+- add RPC and provider tests.
 
-* Should a transaction requiring unavailable state be rejected?
-* Should it be retained but marked locally unverifiable?
-* Should the node defer validation until the state is retrieved?
-* Can a partial-state node safely participate in local block building?
-* How should engine_newPayload behave when execution requires unavailable state?
-* Should partial-state mode disable specific validator or builder roles?
+**Deliverable**: explicit unavailable-state behaviour.
 
-The minimum prototype may fail closed and document unsupported paths.
+**Weeks 17–21 — Measurement and Documentation**
+- compare full-state and partial-state db sizes;
+- collect sync metrics;
+- document limitations and follow-up work;
 
-A stronger prototype will add an explicit policy for these cases.
+**Deliverable**: tested prototype and measurement report.
 
-9. **Block-Level Access Lists**
-
-EIP-7928 BALs will be used as the foundation for post-synchronization maintenance experiments.
-
-The implementation will add:
-
-* BAL ingestion;
-* block-to-BAL indexing;
-* configurable retention;
-* persistence across restarts;
-* filtering of BAL entries by tracked contract;
-* integration with canonical-chain updates;
-* shallow-reorganization handling.
-
-The research will determine:
-
-* which account updates can be identified from BAL data;
-* which storage changes can be maintained;
-* whether the BAL contains sufficient resulting values;
-* what additional data must be requested;
-* whether proofs or witnesses are needed;
-* how newly accessed untracked state should be represented.
-
-BALs will not be treated as a complete solution in advance. Determining their limits is part of the project.
-
-10. **Reorganization Handling**
-
-BAL and update history will be retained for a configurable number of blocks.
-
-For reorganizations within that retention window, the prototype will attempt to:
-
-* identify reverted canonical blocks;
-* identify affected tracked accounts and slots;
-* revert or reconstruct retained updates where sufficient information exists;
-* process BALs from the new canonical branch;
-* update the partial-state checkpoint.
-
-For deeper reorganizations, the node may need to:
-
-* re-download tracked state from a new checkpoint;
-* restart partial synchronization;
-* request additional proofs or witnesses;
-* stop and report that safe recovery is not possible locally.
-
-The node must fail explicitly rather than continue with state that it knows may be inconsistent.
-
-## Roadmap
-
-**Weeks 1–5 — Research, Foundations, and Proposal**
-
-Complete the initial research and implementation groundwork:
-
-* study the Geth partial-state prototype and relevant state-expiry research;
-* map the corresponding Reth storage, provider, sync, RPC, and execution paths;
-* define the initial partial-state architecture and retention model;
-* add initial CLI and tracked-contract configuration;
-* introduce contract-filter, partial-state, and BAL-history foundation types;
-* begin the partial snap writer, network fetch support, downloader, and progress logging;
-* define the core prototype boundary;
-* establish the first-success target;
-* prepare the branch and pull-request strategy;
-* separate core, strong, and stretch deliverables.
-
-**Deliverable:** an accepted proposal, documented architecture, initial implementation foundations, and an agreed technical scope.
-
-**Weeks 6–7 — Configuration and Storage Foundations**
-
-Complete:
-
-* `reth.toml` integration;
-* contract-filter interfaces;
-* helper APIs;
-* provider-backed partial snap writer;
-* synchronization checkpoints;
-* startup logging;
-* configuration and writer tests.
-
-**Deliverable:** a node can start with a persisted partial-state policy and persist selected state through Reth providers.
-
-**Weeks 8–11 — Partial Snap Downloader**
-
-Complete:
-
-* account-range requests;
-* account decoding;
-* tracked-account selection;
-* storage request queues;
-* bytecode request queues;
-* skipped-state accounting;
-* retries and checkpoints;
-* progress metrics.
-
-**Deliverable:** a standalone downloader can retrieve all accounts while selectively retrieving storage and bytecode.
-
-**Weeks 12–14 — Node Sync Integration**
-
-Integrate the downloader with:
-
-* Reth’s node lifecycle;
-* a real target state root;
-* network peer selection;
-* synchronization progress;
-* database persistence;
-* restart behavior.
-
-Run the first controlled local-network test.
-
-**Deliverable:** a Reth node performs a partial-state bootstrap against a local devnet.
-
-**Weeks 15–17 — State Availability, RPC, and Execution**
-
-Add:
-
-* explicit availability types;
-* provider errors;
-* `eth_getStorageAt` behavior;
-* `eth_getCode` behavior;
-* initial ``eth_call` propagation;
-* initial `eth_estimateGas` propagation;
-* tracked versus untracked tests.
-
-**Deliverable:** unavailable state is no longer silently interpreted as empty at provider and RPC boundaries.
-
-**Weeks 18–19 — BAL Maintenance and Reorganizations**
-
-Add:
-
-* BAL persistence;
-* retention configuration;
-* tracked-state filtering;
-* canonical-chain processing;
-* shallow-reorganization experiments;
-* documentation of missing BAL information.
-
-**Deliverable:** at least one demonstrated BAL-based retained-state maintenance path, with its limitations documented.
-
-**Weeks 20–21+ — Devnet Validation**
-
-Run:
-
-* local devnet or Kurtosis tests;
-* full-state versus partial-state comparison;
-* database-size measurements;
-* downloaded-data measurements;
-* restart tests;
-* RPC correctness tests;
-* shallow-reorg tests.
-
-Prepare:
-
-* reproducible runbook;
-* final report;
-* presentation;
-* code-path and architecture documentation;
-* follow-up issues.
-
-Deliverable: reproducible prototype and measurement report.
-
-## Testing Strategy
-
-**Unit Tests**
-
-Test:
-
-* configuration parsing;
-* address and hash filters;
-* tracked and untracked account decisions;
-* state-availability values;
-* provider error propagation;
-* BAL retention;
-* checkpoint persistence.
-
-**Integration Tests**
-
-Test:
-
-* account-range persistence;
-* selective storage downloading;
-* selective bytecode downloading;
-* synchronization restart;
-* explicit storage-unavailable errors;
-* explicit bytecode-unavailable errors;
-* nested execution touching unavailable state.
-
-**Devnet Tests**
-
-Run at least:
-
-1. a normal full-state Reth node;
-2. a partial-state Reth node tracking no contracts;
-3. a partial-state Reth node tracking one contract;
-4. a partial-state Reth node tracking several contracts.
-
-Compare:
-
-* database size;
-* downloaded bytes;
-* synchronization duration;
-* storage slots retained;
-* bytecode retained;
-* RPC behavior;
-* restart behavior;
-* canonical-block processing.
 
 ## Possible Challenges
 
-**Reth’s architecture differs from Geth**
-
-The Geth partial-state prototype is a useful reference, but Reth has different provider, sync, database, static-file, pruning, and pipeline abstractions. The project cannot be implemented as a direct port.
-
-**Snap synchronization assumes eventual completeness**
-
-Parts of snap synchronization may assume that all storage and code will eventually be downloaded. These assumptions must be identified and isolated.
-
-**Missing state may be mistaken for empty state**
-
-This is the main correctness risk. Returning zero storage or empty bytecode for unavailable state could produce incorrect RPC responses and execution results.
-
-**Complete state-root verification may be unavailable**
-
-A node storing only part of the state may not be able to reconstruct the complete state root using its retained database alone.
-
-The prototype must clearly state its trust and verification assumptions.
-
-**BALs may be insufficient by themselves**
-
-BALs may identify accessed or modified state without containing every value, trie node, or proof required to update retained state.
-
-**Execution dependencies are dynamic**
-
-A transaction sent to one tracked contract may call an untracked contract or read an unavailable slot. Retention cannot always be determined from the transaction recipient alone.
-
-**RPC compatibility**
-
-Existing applications may expect standard methods to always return a value. New unavailable-state errors must be clear and stable.
-
-**Reorganization recovery**
-
-Safe rollback may require state values in addition to access information. Deep reorganizations may require re-synchronization.
-
-**Interaction with pruning and storage changes**
-
-Partial-state behavior may interact with:
-
-* pruning;
-* static files;
-* snapshots;
-* trie storage;
-* storage v2;
-* database compaction.
-
-Some interactions may remain prototype-only during the cohort.
+* Reth’s provider and sync architecture differs from Geth, so the prototype requires a Reth-native design.
+* Snap sync may assume that all storage and bytecode are eventually downloaded.
+* Missing state must not be treated as empty state.
+* A partial-state node may not be able to reconstruct the full state root locally.
+* Maintaining state after sync may require BALs, witnesses, or additional state requests.
 
 ## Goal of the Project
 
-The project is successful if Reth has a working, tested, and documented partial-state prototype.
+### Minimum Success
 
-**Minimum Success**
+* synchronize all account records;
+* retain storage and bytecode only for configured contracts;
+* report downloaded and skipped state;
+* persist retained state through Reth providers;
+* distinguish unavailable state from empty state in `eth_getStorageAt` and `eth_getCode`;
+* demonstrate the prototype on a local network;
+* compare its database size with full-state Reth.
 
-* Partial-state configuration is persisted and visible at startup.
-* The node downloads and stores account information for all accounts.
-* Storage and bytecode are downloaded only for configured contracts.
-* Downloaded and skipped state are reported through logs or metrics.
-* Retained data is persisted through Reth’s provider interfaces.
-`eth_getStorageAt` and `eth_getCode` distinguish unavailable state from empty state.
-* The prototype runs on a controlled local network.
-* Architectural assumptions and unresolved correctness questions are documented.
+### Strong Success
 
-**Strong Success**
+* resume sync from a saved checkpoint;
+* test multiple contract configurations;
+* propagate unavailable-state errors into `eth_call`;
 
-* Partial synchronization is integrated into Reth’s node sync lifecycle.
-* Synchronization can restart from a persisted checkpoint.
-* `eth_call` and `eth_estimateGas` propagate unavailable-state failures.
-* BAL history is persisted and filtered for tracked contracts.
-* At least one retained-state update path is driven by BAL information.
-* Shallow-reorganization behavior is demonstrated.
-* Full-state and partial-state nodes are compared using disk, bandwidth, and synchronization measurements.
-* One or more focused PRs are merged or under review.
+### Stretch Work
 
-**Stretch Success**
-
-* Explicit transaction-pool policy for locally unverifiable transactions.
-* Engine API behavior for unavailable execution state.
-* On-demand retrieval of missing tracked state.
-* Dynamic or recently-accessed contract filters.
-* Address-range or hash-range retention policies.
-* More complete BAL-based rollback and reorganization recovery.
-* Interoperation with an external partial-state implementation.
-* Wider Kurtosis or research-devnet testing.
-
-## Deliverables
-
-The project will produce:
-
-* partial-state CLI and reth.toml configuration;
-* configurable contract filters;
-* a provider-backed partial snap writer;
-* a partial snap downloader;
-* partial sync integration;
-* explicit state-availability types and errors;
-* partial-state-aware RPC behavior;
-* initial execution-awareness support;
-* BAL-history storage and processing;
-* shallow-reorganization experiments;
-* synchronization and storage metrics;
-* local devnet or Kurtosis configurations;
-* a full-state versus partial-state benchmark;
-* architecture and limitation documentation;
-* a final report and demonstration.
+* BAL-based state maintenance;
+* shallow-reorg handling;
+* txpool and Engine API behaviour;
+* on-demand retrieval of missing state.
 
 ## Collaborators
 
-**Fellow**
+### Fellow
 
 * [Ifeoluwa Oderinde](https://github.com/owanikin)
 
-**Mentors**
-Reth mentor — to be confirmed
+### Mentor
+
+* Reth mentor — to be confirmed
 
 ## Resources
-[Reth repository](https://github.com/paradigmxyz/reth)
-[EIP-7928: Block-Level Access Lists](https://eips.ethereum.org/EIPS/eip-7928)
-[Validity-Only Partial Statelessness](https://ethresear.ch/t/a-pragmatic-path-towards-validity-only-partial-statelessness-vops/22236)
-[Geth partial-state prototype](https://github.com/ethereum/go-ethereum/pull/33764)
-[Local Reth branch / pull request](https://github.com/paradigmxyz/reth/compare/main...owanikin:reth:owanikin/partial-statefulness-and-state-expiry)
 
+* [Reth repository](https://github.com/paradigmxyz/reth)
+* [Geth partial-state prototype](https://github.com/ethereum/go-ethereum/pull/33764)
+* [EIP-7928: Block-Level Access Lists](https://eips.ethereum.org/EIPS/eip-7928)
+* [Validity-Only Partial Statelessness](https://ethresear.ch/t/a-pragmatic-path-towards-validity-only-partial-statelessness-vops/22236)
+* [Local Reth branch](https://github.com/paradigmxyz/reth/compare/main...owanikin:reth:owanikin/partial-statefulness-and-state-expiry)
