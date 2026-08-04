@@ -8,6 +8,7 @@ To create a project, write your proposal based on [template](./project-template.
 
 - [EIP-8304: Trustless Log and Transaction Index in reth](./reth-eip8304-trustless-index.md) - Zidan
 - [EIP-8304: Trustless log and transaction index in geth](./eip-8304-trustless-log-index.md) - Vansh Sahay
+- [EIP-8304: Trustless log and transaction index in Nethermind](./nethermind-eip-8304-trustless-log-index.md) - Ritesh
 - [Erigon SSZ Execution Blocks and EIP-7807](./erigon-ssz-execution-blocks-eip-7807.md) - Jack CC
 - [Erigon SSZ Query Language](./Erigon-SSZ-Query-Language.md) - Sagar Rana
 - [Etheorem: Lean 4 consensus-spec proofs](./etheorem-consensus-proofs-lean4.md) - Ivan Anishchuk and Raj Gill
