@@ -171,7 +171,7 @@ The actual project development is the main part of the program. Post your regula
 | [Zidan](https://github.com/mzf11125)                 | [Update 6](https://hackmd.io/@mzf11125/HkHWQhnVMe) |        |        |        |         |         |         |         |         |         |         |         |         |         |         |           |
 
 
-## Cohort end ##
+## Cohort end
 
 The final weeks of the cohort should mark the finalization of your project. Submit your last dev update which is reflecting the overall project progress, its next steps and your experience with EPF. You can also link a video or document presenting the final stage of your project.
 
