@@ -95,7 +95,7 @@ Our solution is a trust-minimized checkpoint sync strategy borrowed from/inspire
 
 **Data Collection Test Handler (Aarish)**
 
-The `light_client_data_collection` test handler has been implemented in `testing/ef_tests/src/cases/light_client_data_collection.rs`. The handler follows Lighthouse's `LoadCase` + `Case` trait pattern:
+The `light_client_data_collection` test handler has been implemented and the handler follows Lighthouse's `LoadCase` + `Case` trait pattern:
 
 - `LoadCase` reads `initial_state.ssz_snappy` into a Beacon state, parses `steps.yaml` using typed structs, and loads `SignedBeaconBlock` objects using fork-aware SSZ deserialization via `from_ssz_bytes_by_fork`
 - `Case` initializes a `BeaconChainHarness` from the initial state, processes `NewBlock` steps by importing blocks and calling `recompute_and_cache_updates` directly on `light_client_server_cache` using the block's own sync aggregate
