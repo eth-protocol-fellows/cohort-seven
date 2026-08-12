@@ -44,7 +44,7 @@ sequenceDiagram
 
 A baseline bid policy is enough for the first version: either a fixed value or a fixed shade below a rough payload-value estimate. If the implementation stabilizes early, a more sophisticated policy becomes stretch work, using payload value, builder balance, pending payments, competing-bid assumptions, and free-option risk.
 
-Deathstar and FOCIL remain gated stretch work, summarized below. A living technical note (link to be added before merge) tracks code-path maps, PR state, open implementation questions, bid-policy notes, FOCIL context, and the Deathstar notebook.
+Deathstar and FOCIL remain gated stretch work, summarized below. A companion [living technical note](https://hackmd.io/@krisos/S1a9mdB7fl) tracks code-path maps, PR state, open implementation questions, bid-policy notes, FOCIL context, and the Deathstar notebook.
 
 **Scope summary**
 
@@ -120,7 +120,7 @@ flowchart LR
 
 **Week 5 -- Proposal and scope.** Finalize the proposal, living note, base-branch assumptions, and FOCIL/Deathstar scope. *Deliverable: accepted proposal and agreed scope.*
 
-**Weeks 6-7 -- Architecture and builder skeleton.** Map Gloas codepaths, confirm current PR state, choose the service boundary, and build the first configuration/key-handling skeleton. *Deliverable: builder skeleton that starts and connects.*
+**Weeks 6-7 -- Architecture and builder skeleton.** Map Gloas codepaths, confirm current PR state, choose the service boundary, and build the first configuration/key-handling skeleton. *Deliverable: builder skeleton with separate keystore and remote-signer support that starts and connects.*
 
 **Weeks 8-10 -- Preferences, payload, and bid.** Consume proposer preferences, prepare a local payload candidate through the Engine API / self-build path, and construct, sign, and publish valid bids with a baseline policy. *Deliverable: published valid bid for a locally built payload.*
 
@@ -137,8 +137,6 @@ flowchart LR
 **Evolving EIP-7732 / Gloas specs.** Gloas is still draft, and builder-adjacent containers, deadlines, signing roots, and API surfaces may move during the cohort. The builder should keep bid construction, signing, cache keys, and reveal logic modular enough to follow those changes.
 
 **Builder service boundary.** The cleanest home for `lodestar builder` is not obvious; the first prototype may need to live near existing beacon-node or validator-client services to reuse code.
-
-**Base branch uncertainty.** `unstable`, a Glamsterdam devnet branch, or FOCIL-related work based on discussions with the Lodestar team -- kept open deliberately.
 
 **Builder identity, registration, and balance.** Builders onboard through dedicated EIP-8282 deposit/exit request contracts (deposits carry inline-verified proofs of possession; exits are authorized by the builder's execution address), need active status and excess balance covering bids plus pending payments. Registration must be reproducible on a devnet, and deposit-signature verification is a known performance surface ([Lodestar #9436](https://github.com/ChainSafe/lodestar/pull/9436)).
 
@@ -163,15 +161,18 @@ The project is successful if Lodestar has a working, tested, and documented hone
 - Reproducible local end-to-end demo with a real local execution client.
 - Configurable bid policy plus bid/win/reveal/timing logs and metrics.
 - One or more PRs merged or in review.
-- Heze / FOCIL adaptation pass if FOCIL has merged to `unstable` (blocked by [FOCIL](https://github.com/ChainSafe/lodestar/pull/7342)).
+- Heze / FOCIL adaptation pass ([dependency](https://github.com/ChainSafe/lodestar/pull/7342)).
 - Server-side of the builder api and serve trustless bids via api (blocked by [client-side builder api](https://github.com/ChainSafe/lodestar/pull/9594) + specs).
 - Final write-up of what existed, what was added, and what remains.
+- Advanced payload preparation: predict whether the proposer will build on the FULL or EMPTY parent and prepare payloads ahead of time, potentially multiple per slot ([see more](https://github.com/eth-protocol-fellows/cohort-seven/pull/161#discussion_r3574786863)).
 
 **Stretch success:**
 
 - Improved bid policy beyond a fixed constant.
 - Builder-adversarial Deathstar matrix with one or two implemented scenarios.
 - Deeper write-up of builder bidding constraints under ePBS and follow-up issues for future adversarial builder work.
+- Run a kurtosis devnet with lodestar builder and Buildoor, consistently out-bid Buildoor's bids and get selected.
+- Research and potentially introduce envelope withholding when early attester signals suggest a weak proposer block (note that there is no unbundling risk in Lodestar and keep in mind that withholding payload on a future canonical block results in a fund loss).
 
 ## Collaborators
 
@@ -186,8 +187,8 @@ The project is successful if Lodestar has a working, tested, and documented hone
 
 ## Resources
 
-- **Living technical note** -- link to be added before merge; companion document for the full PR map, code-path map, cache design, bid-policy notes, Deathstar notebook, and resource library
-- **Presentation** -- link to be added when the presentation exists
+- **[Living technical note](https://hackmd.io/@krisos/S1a9mdB7fl)** -- companion document for the full PR map, code-path map, cache design, bid-policy notes, Deathstar notebook, and resource library
+- **[Presentation slides](https://docs.google.com/presentation/d/1cmC3fpu652gZFTIm2_P1lIYOfC2M_w3c5qXSUZ4B6lc)** -- Lodestar EIP-7732 Builder project presentation
 - [EIP-7732](https://eips.ethereum.org/EIPS/eip-7732) - Gloas [builder](https://github.com/ethereum/consensus-specs/blob/master/specs/gloas/builder.md) and [p2p](https://github.com/ethereum/consensus-specs/blob/master/specs/gloas/p2p-interface.md) specs - [EIP-7773 (Glamsterdam meta)](https://eips.ethereum.org/EIPS/eip-7773) - [EIP-8282 (builder deposits/exits)](https://eips.ethereum.org/EIPS/eip-8282)
 - EPF7 project ideas: [Builder](https://github.com/eth-protocol-fellows/cohort-seven/blob/master/projects/project-ideas.md#lodestar-eip-7732-builder) - [Deathstar](https://github.com/eth-protocol-fellows/cohort-seven/blob/master/projects/project-ideas.md#lodestar-adversarial-node)
 - [Lodestar](https://github.com/ChainSafe/lodestar) - the builder gap: [`produceBlockBody.ts`](https://github.com/ChainSafe/lodestar/blob/unstable/packages/beacon-node/src/chain/produceBlock/produceBlockBody.ts) - [Deathstar chaos catalog](https://github.com/ChainSafe/lodestar/blob/deathstar/EPBS_CHAOS_FEATURES.md)
