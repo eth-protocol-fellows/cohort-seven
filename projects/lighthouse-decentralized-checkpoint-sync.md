@@ -25,14 +25,21 @@ The core of this project, however, is not just the high-level flow — it is the
 **Recency guard in `import_block_update_metrics_and_events`:**
 
 ```rust
-// Do not write to the cache for blocks older than 2 epochs, this helps reduce writes to
-// the cache during sync.
-if block_delay_total < self.slot_clock.slot_duration() * 64 {
-    // Store the timestamp of the block being imported into the cache.
-    self.block_times_cache.write().set_time_imported(
-        block_root,
-        current_slot,
-        block_time_imported,
+// Do not trigger light_client server update producer for old blocks, to extra work
+// during sync.
+if self.config.enable_light_client_server
+    && block_delay_total < self.slot_clock.slot_duration() * 32
+    && let Some(mut light_client_server_tx) = self.light_client_server_tx.clone()
+    && let Ok(sync_aggregate) = block.body().sync_aggregate()
+    && let Err(e) = light_client_server_tx.try_send((
+        block.parent_root(),
+        block.slot(),
+        sync_aggregate.clone(),
+    ))
+{
+    warn!(
+        error = ?e,
+        "Failed to send light_client server event"
     );
 }
 ```
@@ -84,13 +91,15 @@ Our solution is a trust-minimized checkpoint sync strategy borrowed from/inspire
 
 **The Problem:** `recompute_and_cache_updates()` in `LightClientServerCache` already computes Merkle proofs, constructs `LightClientUpdates`, and stores `SyncCommitteeBranches` to the database. However, it is only invoked for recent blocks because `import_block_update_metrics_and_events()` gates the light client server channel as explained earlier. Furthermore, `cache_state_data()` runs for all blocks but only persists to an in-memory LRU cache of size 32, meaning proofs are computed and then discarded for historical blocks.
 
-**The Solution:** Implement a post-sync backfill task that walks the finalized chain from the Altair fork to the present and reuses the existing `recompute_and_cache_updates()` logic to populate the database for all historical sync committee periods.
+
+**The Solution:** Implement a post-sync backfill task that walks the finalized chain from the Altair fork to the present. For each sync committee period, check if LightClientUpdate and SyncCommitteeBranch data exists in the DB. If not, load the corresponding state (from DB) and call `recompute_and_cache_updates`. For pre-checkpoint data, nodes must rely on the network backfill API (to be defined).
 
 - **Trigger:** After the node transitions from `SyncState::Syncing` to `SyncState::Synced`, spawn a background task (`lc_backfill`) that iterates finalized blocks period-by-period.
 - **Resumability:** Before processing a period, check `store.get_light_client_update(period)`. If it exists, skip.
 - **Optimization:** Rather than loading the state for every block in a period (~8,192 slots), iterate block headers via `get_blinded_block()`, identify the block with the best `SyncAggregate` participation in that period, and only load the state and call `recompute_and_cache_updates()` for that candidate. This reduces expensive state loads from thousands per period to one per period.
 - **Bootstrap Data:** Ensure `store_sync_committee_branch()` and `store_sync_committee()` are also called during backfill so that `get_light_client_bootstrap()` works for any historical finalized checkpoint, not just recent ones.
-- **Fallback for On-Demand Generation:** For nodes that cannot run the full backfill (e.g., due to pruned states), modify `get_light_client_bootstrap()` and `get_light_client_updates()` to fall back to on-demand computation: if the DB entry is missing, load the archived state from the freezer DB, compute the proof or update, store it, and return it. The pattern for this already exists in `get_or_compute_prev_block_cache()`.
+- **Fallback for On-Demand Generation:** For nodes that cannot run the full backfill (e.g., due to pruned states), modify `get_light_client_bootstrap()` and `get_light_client_updates()` to fall back to on-demand computation: if the DB entry is missing, load the archived state from the freezer DB, compute the proof or update, store it, and return it. The pattern for this already exists in `get_or_compute_prev_block_cache()`. This fallback only succeeds if the node actually has the corresponding BeaconState. For checkpoint-synced nodes, pre-checkpoint requests will fail locally but can be served via a network backfill API.
+- **Network Backfill API:** Define and implement a new p2p endpoint allowing nodes to fetch historical LightClientUpdates and SyncCommitteeBranches from peers who were online during the requested periods and have stored the data locally. This is the only path to obtain data from before the node's own checkpoint, since local generation is impossible without the state.
 - **Testing:** Ensure Lighthouse passes the consensus-specs light client data collection tests. Currently, Lighthouse lacks the data collection coverage because it cannot reconstruct the full historical sequence.
 
 **Data Collection Test Handler (Aarish)**
