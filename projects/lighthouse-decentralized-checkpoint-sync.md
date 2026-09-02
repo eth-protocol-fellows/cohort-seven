@@ -67,23 +67,17 @@ The combined effect: a Lighthouse node that synced from genesis or checkpoint ca
 
 Our solution is a trust-minimized checkpoint sync strategy borrowed from/inspired by the LC sync strategy:
 
-1. **Make Lighthouse "collect" historical light client data** — The consensus spec tests verify that a client can construct the full sequence of light client objects, but Lighthouse currently throws away historical data. We need to ensure Lighthouse can generate and persist:
+1. **Make Lighthouse "collect" historical light client data** — The consensus spec tests verify that a client can construct the full sequence of light client objects, but Lighthouse currently throws away historical data. We need to ensure Lighthouse can generate and persist, for every period it has state available:
    - `LightClientUpdate` for every sync committee period
    - `sync_committee_branch` for finalized checkpoint blocks
    - `LightClientBootstrap` data for historical finalized blocks
 
-2. **Design the backfill API** — Once nodes have the data, we need a way to request it. This is the first TBD endpoint and it should look something like:
+2. **Design the backfill API** — Once nodes have the data, we need a way to request it from peers for periods they don't have locally. This is a libp2p request/response protocol, following the pattern of Etan's `LightClientDataBackfillByRange` spec. Key design questions already resolved by the spec:
+   - Transport: libp2p req/resp
+   - Rate limiting: capped at 256 epochs per request
+   - Proof-of-honesty: every field in the response is independently Merkle-verifiable by the requester, so a lying peer is detectable, not merely trusted
 
-   ```
-   GET /eth/v1/beacon/light_client/updates/backfill?from_period={u64}&count={u64}
-   ```
-
-   Or a libp2p protocol. The response would be a batch of `LightClientUpdates`. Key design questions:
-   - Should this be a REST API (Beacon-API) or a libp2p gossip/rpc protocol?
-   - How do you rate-limit it? (Historical updates could be megabytes)
-   - How does a peer prove it has the data vs. lying?
-
-3. **Pass the spec tests** — There are test vectors in the consensus-specs repo. The goal is to make Lighthouse generate the expected outputs for all historical periods, not just the current one.
+3. **Pass the spec tests** — There are test vectors in the consensus-specs repo. The goal is to make Lighthouse generate the expected outputs for all periods it has state for, not just the current one.
 
 ## Specification
 
@@ -91,21 +85,29 @@ Our solution is a trust-minimized checkpoint sync strategy borrowed from/inspire
 
 **The Problem:** Lighthouse already computes light client proofs for every block during sync, but the recency guard in `import_block_update_metrics_and_events` and the bounded channel (`LIGHT_CLIENT_SERVER_CHANNEL_CAPACITY = 32`) prevent historical data from reaching the database. Additionally, `get_light_client_bootstrap` explicitly lacks a backfill mechanism. The result: checkpoint-synced nodes cannot serve historical LC data to peers.
 
-**The Solution (Local Collection — Phase 1a):** Implement a post-sync backfill task that walks the finalized chain from the node's **earliest available state** to the present. For each sync committee period, identify the best block (highest sync aggregate participation), load its state from the freezer DB, and call `recompute_and_cache_updates` to store the canonical `LightClientUpdate` and `SyncCommitteeBranch`.
+**The Solution (Local Collection — Phase 1a):** Implement a post-sync backfill task that walks the finalized chain from the node's **earliest available state** to the present. (Note: this is bounded by whichever `BeaconState`s the node actually retains — a checkpoint-synced, non-archive node cannot walk back to Altair; only an archive node can. Backfill coverage is therefore a function of node configuration, not a project guarantee of full Altair-to-present coverage on every node type.) For each sync committee period, identify the best block (highest sync aggregate participation), load its state from the freezer DB, and call `recompute_and_cache_updates` to store the canonical `LightClientUpdate` and `SyncCommitteeBranch`.
 
 This task:
 - Spawns when `BackFillState::Completed` is set
 - Is resumable (checks `store.get_light_client_update(period)` before processing)
 - Is pausable and low-priority (yields to validator duties)
 - Only works for periods where the node has the `BeaconState`
+- Reuses Lighthouse's **existing** `DBColumn::LightClientUpdate` / `SyncCommitteeBranch` / `SyncCommittee` storage — this phase does not introduce a new DB column for `LightClientEpochData`. `LightClientEpochData` is a **wire/transport container** defined by Etan's spec for the p2p endpoint below; it is assembled on demand from the existing stored fields when serving a request, not persisted as its own schema. Etan's spec is explicitly marked as a draft ("TBD and likely not yet optimal"), so we avoid committing local storage to a container shape that may still change.
 
 **The Solution (P2P Serving — Phase 1b):** Implement the `LightClientDataBackfillByRange` libp2p endpoint as specified in Etan's draft:
 
+```
 /eth2/beacon_chain/req/light_client_data_backfill_by_range/0/
 
 Request:  (start_epoch: Epoch, count: uint64)
 Response: List[LightClientEpochData, MAX_REQUEST_LIGHT_CLIENT_EPOCH_DATA]
 MAX_REQUEST_LIGHT_CLIENT_EPOCH_DATA := 256
+```
+
+Implementation follows the pattern of the existing `handle_light_client_updates_by_range` handler in `network_beacon_processor::rpc_methods.rs`:
+- Validate the request (count ≤ 256, `start_epoch` and range must be finalized)
+- Query stored `LightClientUpdate`/`SyncCommitteeBranch` data for the requested range and assemble each `LightClientEpochData` response entry
+- Stream responses back via `SendResponse`
 
 `LightClientEpochData` contains per-epoch raw block data including `sync_committee_bits`, `sync_aggregate_branch`, `finalized_checkpoint`, and `current_sync_committee` — everything a receiver needs to independently simulate `is_better_update` and verify the canonical best update for a period.
 
@@ -114,17 +116,45 @@ Key constraints:
 - Fork context determined from last non-empty `block_data[i]` (or `epoch` if all empty)
 - Rate-limited to 256 epochs per request
 
-**On-Demand Fallback:** For periods not yet backfilled, modify `get_light_client_updates` and `get_light_client_bootstrap` to check the DB first, then fall back to computing from archived states if available. For pre-checkpoint data, the node must request from peers via the endpoint above — local generation is impossible without the state.
+**On-Demand Fallback:** For periods not yet backfilled, modify `get_light_client_updates` and `get_light_client_bootstrap` to check the DB first, then fall back to computing from archived states if available (archive-mode nodes only). For pre-checkpoint data on a non-archive node, local generation is impossible — the node must request it from peers via the endpoint above.
 
-**Testing:** Pass consensus-specs light client data collection tests. Aarish's draft PR (#9666) implements the test handler.
+**Testing (Phase 1a/1b):**
+
+1. **Unit tests**
+   - `recompute_and_cache_updates` produces a correct `LightClientUpdate` and `SyncCommitteeBranch` for a known-good historical period
+   - Constructing `LightClientEpochData` from stored `LightClientUpdate`/`SyncCommitteeBranch` data round-trips correctly against Etan's container spec
+   - Best-candidate selection (highest sync aggregate participation) picked correctly across a period with missed slots
+
+2. **Integration tests**
+   - Post-sync backfill completes for all periods from earliest available state to present
+   - Resume-on-crash: backfill continues from the last completed period rather than restarting
+   - `get_light_client_bootstrap` succeeds for any historical finalized checkpoint the node has backfilled
+   - On-demand fallback returns correct data for archive-mode nodes and correctly errors (or falls through to network) for non-archive nodes
+
+3. **Consensus spec tests**
+   - Pass `light_client_data_collection` test vectors (Aarish's draft PR #9666 implements the test handler)
+
+4. **P2P endpoint tests**
+   - Peer requests an epoch range and receives the expected `LightClientEpochData` list
+   - Requests over `MAX_REQUEST_LIGHT_CLIENT_EPOCH_DATA` (256) are rejected
+   - Fork context is correctly derived from the last non-empty `block_data[i]`, falling back to `epoch` when the whole range is empty
+   - Requests for unfinalized data are rejected
+
+5. **Adversarial tests** (design in Phase 1, exercise in Phase 4)
+   - Peer returns incorrect `sync_committee_bits` → rejected on proof mismatch
+   - Peer omits blocks in a period → detected via Merkle proof verification
+   - Peer returns unfinalized or malformed data → rejected
 
 ### Phase 2: BeaconStateSnapshot & Checkpoint Bootstrap (Yee)
 
 Implement the `BeaconStateSnapshot` endpoint for state snap sync:
 
+```
 /eth2/beacon_chain/req/beacon_state_summary/0/
+
 Request:  (block_root: Root)  # LightClientStore.finalized_header
 Response: BeaconStateSnapshot
+```
 
 The `BeaconStateSnapshot` contains:
 - `summary: BeaconStateSummary` — a mirror of `BeaconState` where all `List` / `ProgressiveList` fields are summarized as `ListSummary { items_root, num_items }`, preserving the same `hash_tree_root`
@@ -136,14 +166,17 @@ The server must keep the last 2 summaries available to avoid rollover during ong
 
 Also implement the trusted checkpoint bootstrap mechanism: if network metadata contains `trusted_checkpoint.txt` with `0x<block_root>:<epoch>`, light clients start syncing from this root; otherwise, use genesis (if post-Altair) or require `--trusted-block-root`.
 
-### Phase 3: State Snap Sync - BeaconStatePartsByRange (Aarish)
+### Phase 3: State Snap Sync — BeaconStatePartsByRange (Aarish)
 
 Implement the state chunking protocol as specified:
 
+```
 /eth2/beacon_chain/req/beacon_state_parts_by_range/0/
+
 Request:  (start_chunk: uint64, count: uint64)
 Response: List[BeaconStatePart, MAX_REQUEST_BEACON_STATE_PARTS]
 MAX_REQUEST_BEACON_STATE_PARTS := 16
+```
 
 `BeaconStatePart` contains:
 - `chunk_index: uint64`
@@ -161,6 +194,34 @@ The node fetches the `BeaconStateSnapshot` first (Phase 2), then requests parts 
 - Wire the components together: LC bootstrap, forward sync, snapshot, chunk fetch, state assembly.
 - Test that a new peer can join the network, validate cryptographically all the way to the present, and transition to full node duties without trusting a checkpoint URL.
 - Write spec tests and integration tests for the backfill API.
+- Exercise the adversarial test cases designed in Phase 1 against a live testnet peer set.
+
+## Phase interdependencies
+
+```
+Phase 1a/1b (Historical LC data)
+  ├─ Depends on: Altair fork support already in Lighthouse
+  ├─ Produces: locally verified LightClientUpdate/SyncCommitteeBranch data,
+  │            served over the network as LightClientEpochData
+  └─ Used by:   Phase 2 (links a verified block header to a state root)
+
+Phase 2 (BeaconStateSnapshot — Yee)
+  ├─ Depends on: Phase 1 (a verified recent block header to anchor to)
+  ├─ Produces:  BeaconStateSummary + Merkle proof from block header to state root
+  └─ Consumed by: Phase 3 (state chunk verification root)
+
+Phase 3 (BeaconStatePartsByRange — Aarish)
+  ├─ Depends on: Phase 2 (the state summary chunks are proved against)
+  ├─ Produces:  verifiable BeaconState chunks
+  └─ Consumed by: Phase 4 (full state reassembly)
+
+Phase 4 (End-to-end)
+  ├─ Orchestrates: Phases 1–3 in sequence
+  ├─ Tests: full checkpoint-sync flow, including adversarial peers
+  └─ Success: a new node joins without trusting a checkpoint URL
+```
+
+Phase 1 is independently useful on its own (it fixes a real gap in Lighthouse's existing LC serving today); Phases 2–3 build on it for the full trust-minimized checkpoint-sync pipeline.
 
 ## Roadmap
 
@@ -172,29 +233,28 @@ The node fetches the `BeaconStateSnapshot` first (Phase 2), then requests parts 
 | Phase 3  | Week 14 – 15 | `BeaconStatePartsByRange` endpoint; deterministic chunking                                                                     | Aarish           |
 | Phase 4  | Week 15 – 16 | End-to-end integration; documentation                                                                                          | All              |
 
-
 ## Possible challenges
 
-- **Protocol evolution risk:** Etan's HackMD spec is explicitly marked as a draft ("TBD and likely not yet optimal"). The LightClientEpochData container, chunk sizes, and endpoint paths may change during implementation. 
-- **State Availability for Backfill:** The backfill task requires loading historical `BeaconStates` from the freezer DB. If a node pruned states before backfill completed, or if it checkpoint-synced and never had old states, it cannot generate historical light client data. We must document that backfill requires either archive node configuration or fetching missing data from peers (the backfill API).
+- **Protocol evolution risk:** Etan's HackMD spec is explicitly marked as a draft ("TBD and likely not yet optimal"). The `LightClientEpochData` container, chunk sizes, and endpoint paths may change during implementation. We build defensively, pinning only the parts that are stable (the existing `LightClientUpdate` storage, the `is_better_update` ranking logic) and adapting the transport layer as the spec stabilizes.
+- **State Availability for Backfill:** The backfill task requires loading historical `BeaconStates` from the freezer DB. If a node pruned states before backfill completed, or if it checkpoint-synced and never had old states, it cannot generate historical light client data for those periods. We document that full historical coverage requires either archive node configuration or fetching missing data from peers (the backfill API) — it is not something the local backfill task alone can guarantee on every node type.
 - **Performance During Sync:** While the backfill task runs in the background, loading and hashing old states is CPU and I/O intensive. We must ensure it yields to validator duties and does not starve the node of resources. The task should be pausable and low-priority.
 - **Channel Overflow:** If we remove the recency guard entirely instead of using post-sync backfill, the light client server channel (currently bounded to 32 slots) will overflow during fast sync, dropping events. The post-sync backfill approach avoids this, but we must verify that the `prev_block_cache` (also size 32) does not become a bottleneck if we repurpose the flow.
 - **Beacon Sync Chunk Proofs:** Designing Merkle multi-proofs for arbitrary fixed-size byte ranges of an SSZ container is non-trivial. The proofs must be efficient to generate (without rehashing the entire state) and compact enough to not negate the benefit of chunking.
-- Etan's revised spec avoids BeaconState modifications entirely. The trust model now relies on Merkle-proved LightClientEpochData rather than enshrined state tracking.
+- **No BeaconState modifications required:** Etan's revised spec avoids BeaconState modifications entirely (an improvement over the earlier EIP-7658 approach, which needed one). The trust model relies on Merkle-proved `LightClientEpochData` rather than enshrined state tracking, which is why this project does not require a hard fork.
 
 ## Goal of the project
 
 **Minimum Viable Goal**
 
-- Lighthouse generates, stores, and serves historical `LightClientUpdates` for all sync committee periods from Altair to present.
-- Lighthouse stores `SyncCommitteeBranch` and `SyncCommittee` for all historical finalized checkpoints, enabling `get_light_client_bootstrap` for any valid block root.
+- Lighthouse generates, stores, and serves historical `LightClientUpdates` for all sync committee periods it has state available for.
+- Lighthouse stores `SyncCommitteeBranch` and `SyncCommittee` for all historical finalized checkpoints it has backfilled, enabling `get_light_client_bootstrap` for those block roots.
 - Lighthouse passes all consensus-specs light client data collection tests.
 
 **Stretch Goals**
 
 - A working `LightClientBeaconSnapshot` endpoint that serves a recent state root with a Merkle proof against a trustlessly known block header.
 - A working pathway for nodes to fetch and verify the `BeaconState` in fixed-size chunks with Merkle proofs, completing the trustless checkpoint sync loop.
-- A documented backfill API (p2p or REST) allowing nodes to discover and fetch missing historical light client updates from peers.
+- A documented, spec-aligned `LightClientDataBackfillByRange` p2p endpoint allowing nodes to discover and fetch missing historical light client data from peers.
 
 **Success Criteria**
 
