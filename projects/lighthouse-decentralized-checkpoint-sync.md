@@ -291,3 +291,4 @@ This project will be considered successful when a new peer can join the Ethereum
 - [Beacon API — getLightClientFinalityUpdate](https://ethereum.github.io/beacon-APIs/#/Beacon/getLightClientFinalityUpdate)
 - [Beacon API — getLightClientOptimisticUpdate](https://ethereum.github.io/beacon-APIs/#/Beacon/getLightClientOptimisticUpdate)
 - [Beacon API — event stream](https://ethereum.github.io/beacon-APIs/#/Events/eventstream)
+ 
