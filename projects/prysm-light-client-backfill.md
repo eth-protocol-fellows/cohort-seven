@@ -1,302 +1,263 @@
 # Historical Light-Client (LC) Data Backfill in Prysm
 
-Implement and evaluate an experimental, one-period historical light-client (LC) data backfill in Prysm, following the protocol sketch in the description of [Nimbus PR #8445](https://github.com/status-im/nimbus-eth2/pull/8445) by Etan Kissling. (That PR itself only adds a debug configuration flag, default off; the protocol design lives in its description.)
+Implement and evaluate an experimental historical light-client (LC) data backfill in Prysm, following the epoch-data protocol in Etan Kissling's [decentralized CL sync draft](https://hackmd.io/@etan-status/decentralized-cl-sync).
 
-The project reconstructs the evidence needed to identify the canonical best `LightClientUpdate` for a completed sync-committee period, verifies that update without trusting the supplier, imports it atomically, and serves it through Prysm's existing light-client REST API.
+The receiver verifies finalized `LightClientEpochData` against its trusted local `LightClientStore`, reconstructs the canonical inputs needed to rank a completed period's candidates, and selects the best update itself. It then fetches that update through the standard `LightClientUpdatesByRange`. Only a matching, fully validated update is imported into Prysm's database and served through its existing LC REST API.
 
 ## Motivation
 
-Ethereum consensus clients commonly start from a recent checkpoint instead of replaying the chain from genesis. This makes startup practical, but it also means a checkpoint-synced node does not possess all historical post-states. Those states are normally required to derive old light-client updates, including their sync-committee and finality proofs.
+Ethereum consensus clients commonly start from a recent checkpoint instead of replaying the chain from genesis. This makes startup practical, but a checkpoint-synced node does not possess the historical post-states normally required to derive old light-client updates, including their sync-committee and finality proofs. Prysm's ordinary block backfill restores historical blocks, not those states, and it cannot restore them: a block cannot be undone to recover the state it was applied to, and states are not served over p2p. So if a completed period's update was never generated or has since been pruned, the updates-by-range interface cannot reconstruct it.
 
-Prysm already supports live light-client data generation and can serve retained updates through the standard APIs. Its ordinary block backfill, however, restores historical blocks, not the historical post-states used by the LC data-collection path. If a completed period's update was never generated, or has since been pruned, the updates-by-range interface cannot reconstruct it on its own.
-
-Historical light-client data availability is one part of a larger decentralized checkpoint-sync pipeline. In that pipeline a **checkpoint consumer** (a freshly starting node) begins from a trusted block root, processes LC updates until it authenticates a recent finalized `state_root`, downloads the corresponding `BeaconState` from an untrusted **checkpoint provider**, and verifies that state against the authenticated root before initializing the client. The pipeline only works at scale if providers can actually serve the historical updates the consumer walks through — which is exactly what a checkpoint-synced Prysm node cannot do today.
-
-This project therefore addresses the provider-side gap: recovering missing standard updates for completed periods.
+This matters beyond a single node. Historical LC data availability is one part of a decentralized checkpoint-sync pipeline: a freshly starting node walks LC updates until it authenticates a recent finalized `state_root`, downloads the corresponding `BeaconState` from an untrusted peer, and verifies that state against the authenticated root before initializing. The pipeline only works at scale if the nodes it asks can actually serve the historical updates it walks through — which is exactly what a checkpoint-synced Prysm node cannot do today.
 
 ### Roles
 
-Four roles appear in this document and are kept distinct:
+Two roles appear in this document and are kept distinct:
 
-| Role                    | Meaning                                                                                                      |
-|-------------------------|--------------------------------------------------------------------------------------------------------------|
-| **Checkpoint consumer** | A freshly starting node walking LC updates to authenticate a recent state root. Out of scope here.           |
-| **Checkpoint provider** | A node serving historical LC updates to consumers. The role whose gap this project closes.                   |
-| **Backfill supplier**   | The untrusted party that supplies historical artifacts during backfill.                                      |
-| **Backfill receiver**   | The node recovering its own history; runs a pure verifier over supplied artifacts before importing anything. |
+| Role                  | Responsibilities                                                                                                                                                                                                                                                                                         |
+|-----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Backfill receiver** | The node recovering its own history. Begins from a trusted local `LightClientStore`; requests epoch data; verifies coverage, reconstructed headers, and proofs; derives candidate-ranking inputs; selects the expected winner locally; obtains and validates the complete update; imports it atomically. |
+| **Backfill supplier** | The untrusted party that supplies historical data. Collects and retains epoch data while the required blocks and states are available, and serves finalized `LightClientEpochData` and retained `LightClientUpdate` objects. The receiver does not trust its validity or best-update claims.             |
 
-A checkpoint provider becomes one by first acting as a backfill receiver.
+Epoch data and the complete update may come from different suppliers; correctness depends on verification, not on who supplied the data.
 
-### The security problem
+### The completeness problem
 
-The central question is not only whether a supplied update is _valid_ — it is whether it is the _best available_. An untrusted backfill supplier could return a valid but inferior update while withholding a stronger canonical candidate it holds.
+The central question is not only whether a supplied update is *valid* — it is whether it is the *best available*. `is_better_update` defines a total order over a period's candidates, so "the best update for period P" is a single value determined by the chain. Once a receiver holds it, no peer can supply a better one: the backfill for that period is provably finished, and every honest node converges on byte-identical data. Withholding is detectable as a consequence — the target is unique and computed locally, so a supplier who withholds the maximum produces a mismatch the receiver can see.
 
-The mechanism that makes completeness checkable rather than merely assumed is **sequencing**. The receiver first obtains the period's full `block_roots` list, committed and proven back to a trusted anchor, before it ever requests the per-slot participation data used to rank candidates. Because the reference list of "everything that should exist" is pinned up front, independently of the party supplying the per-slot data, a later gap in that data is structurally detectable rather than something the receiver must take on faith.
+What makes completeness checkable rather than merely assumed is **chaining**. Each epoch record lets the receiver reconstruct a header for every non-empty slot, and each header commits to its parent's root. The receiver walks that chain backward from a header it already trusts, so the set of blocks that existed in the window is fixed by the hash chain rather than by the supplier's word. Ranking then needs no aggregate signatures: the blocks carrying the participation bits are proven canonical this way, and the chain's own state transition already verified their aggregates when it accepted them.
 
-A second observation keeps the artifact set small: per-slot `sync_committee_bits` are Merkle-proven against block roots that are themselves proven canonical. Any such block was accepted by the chain's own state transition, which already verified its sync-aggregate signature. The receiver therefore does not need aggregate signatures for candidate ranking — only for the single winning update it imports.
+## Protocol flow
 
-## Relationship to existing work
+1. **Establish the trusted boundary.** Use the receiver's already synced `LightClientStore.finalized_header`, established as the latest canonical block at the requested window's end rather than merely a finalized ancestor.
+2. **Request historical epoch data.** Call `LightClientDataBackfillByRange(start_epoch, count)` and walk backward through finalized history, up to 256 epoch records per request, streamed as individual chunks.
+3. **Verify the history.** Reconstruct each non-empty block's body root and header, require the resulting chain to end at the authenticated boundary, and verify finality, execution, and committee evidence. The authenticated `parent_block_header` becomes the next older boundary.
+4. **Select the expected winner locally.** Once the period's complete, aligned coverage is verified, derive all eligible candidates and reproduce Prysm's `IsBetterUpdate` comparison rules. `LightClientEpochData` is not a complete `LightClientUpdate`, so it cannot be passed directly to the unmodified function.
+5. **Request the complete update.** Call the existing `LightClientUpdatesByRange(start_period=P, count=1)`. This returns the supplier's own selection, not all of its candidates.
+6. **Match and validate.** Require the full update to match the locally selected winner's authenticated fields, then verify its fork-correct Merkle proofs and BLS aggregate signature against the authenticated committee for that historical period.
+7. **Import and serve.** Atomically store the verified update, make equivalent reimports a no-op, reject conflicting records, and serve the result through Prysm's existing updates-by-range API.
 
-| Reference                                                                      | Relationship                                                                                                                                                                                                                                                                                                                         |
-|--------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [Nimbus PR #8445](https://github.com/status-im/nimbus-eth2/pull/8445)          | The design this project implements. Provides the artifact shapes and the nine-step protocol sketch.                                                                                                                                                                                                                                  |
-| [consensus-specs #3614](https://github.com/ethereum/consensus-specs/pull/3614) | Tracking the best `SyncAggregate` in `BeaconState` to enable backfill; the spec-side enshrinement counterpart Etan links from #8445.                                                                                                                                                                                                 |
-| [consensus-specs #3553](https://github.com/ethereum/consensus-specs/pull/3553) | Canonical-only LC data collection. Establishes the canonicality requirement this verifier enforces.                                                                                                                                                                                                                                  |
-| [EIP-7658](https://eips.ethereum.org/EIPS/eip-7658)                            | The EIP formulation of the same enshrinement direction as #3614 (tracking best sync data in `BeaconState`); currently Stagnant. This project follows the #8445 artifact model instead, which pins completeness to a committed `block_roots` list and requires no fork. Phase 0 includes writing an explicit mapping between the two. |
+```mermaid
+sequenceDiagram
+    participant R as Backfill receiver
+    participant P as Supplier(s)
+    Note over R: Trusted local finalized boundary
+    R->>P: LightClientDataBackfillByRange(start_epoch, count)
+    loop Finalized epoch chunks, newest to oldest
+        P-->>R: LightClientEpochData
+        R->>R: Reconstruct headers, connect boundary, verify evidence
+    end
+    R->>R: Complete period coverage and select expected winner
+    R->>P: LightClientUpdatesByRange(P, 1)
+    P-->>R: Full LightClientUpdate
+    R->>R: Match winner, verify proofs and BLS, import atomically
+```
 
-### The enshrinement alternative
-
-Etan notes in #8445 that steps 4–6 (per-slot block data, exhaustiveness check, independent ranking) could be skipped entirely by enshrining `is_better_update` into the state transition function, which would also shrink `block_roots` needs to epoch-transition blocks only. That path was raised directly with Etan and set aside: enshrinement is a hard fork and a long process, whereas the artifact approach is deployable today at an estimated cost of roughly 1 GB/year (see the Resource bounds section).
-
-This project therefore implements the artifact path, and Phase 0 records which components would be obsoleted if enshrinement later lands — the artifact types and producer would be, the verifier's canonicality and import logic largely would not.
+One range request carries many epoch chunks; this is not one round trip per epoch. A short response, a missing winner, or a winner that does not match the local selection all mark the period incomplete and trigger a retry against a different supplier; after three suppliers the period is reported unavailable rather than failed. None of these is a protocol error — each signals an incomplete peer. A fully verified period with no eligible candidates is a separate outcome: no update is fabricated.
 
 ## Scope
 
-How this project maps onto the nine protocol steps sketched in #8445:
+A complete historical LC data backfill path in Prysm, disabled by default behind a debug flag:
 
-| #8445 step                                      | This project                                                                          |
-|-------------------------------------------------|---------------------------------------------------------------------------------------|
-| 1 — Sync a `LightClientStore`                   | Replaced by a pinned, pre-authenticated anchor fixture (see the Trust model section). |
-| 2 — Fetch `LightClientPeriodData`               | **In scope** (SSZ file / in-process adapter instead of P2P).                          |
-| 3 — Verify `anchor_update` best-ness            | **In scope**, with explicitly reduced semantics (see the Trust model section).        |
-| 4 — Fetch `LightClientBlockData`                | **In scope** (same transport substitution).                                           |
-| 5 — Verify exhaustiveness                       | **In scope**; core of the verifier.                                                   |
-| 6 — Independent `is_better_update` ranking      | **In scope**; reuses Prysm's existing implementation.                                 |
-| 7 — Obtain the standard update, match, seal     | **In scope**; matched update imported atomically and served via REST.                 |
-| 8–9 — `LightClientBootstrapData` reconstruction | Deferred to follow-up work.                                                           |
+- **Supplier.** Epoch data collected continuously during forward sync and retained for serving, plus the `LightClientDataBackfillByRange` responder.
+- **Receiver and verifier.** Header reconstruction, complete canonical coverage, fork-correct proof validation, candidate derivation, independent `IsBetterUpdate` ranking, and full-winner matching.
+- **Acquisition.** Epoch-data range requests, and full-update acquisition through the standard `LightClientUpdatesByRange`.
+- **Import and serving.** Atomic verify-before-write import, `LightClientBootstrap` construction from the verified `bootstrap_data`, and round-trip serving through Prysm's existing LC REST endpoints.
 
-### In scope
+A sync-committee period is the span of slots served by a single sync committee (256 epochs, or 8192 slots, on mainnet). It is the natural unit because the LC protocol retains one best `LightClientUpdate` per period. Recovering many periods is the same mechanism run longer, not a second one: the receiver walks records backward continuously and ranks each period as its coverage completes.
 
-A vertical slice for **one completed Electra sync-committee period under the minimal preset**:
+**Fork scope.** Backfill walks backward, so a node must decode every fork between its head and the oldest period it serves — not just the fork of the data it wants. Fork handling is therefore a schema table from day one rather than a later port: branch depths follow the applicable fork's SSZ layout, and the response context fork is taken from the last non-empty `block_data` entry. The table covers every fork from Electra forward, including Gloas. Gloas matters most because it is the fork whose `execution` field changes type — a block root after Gloas, an execution header before — so it is the case that proves the table works instead of merely varying a depth. Branch normalization is used only where the specification permits it; it never substitutes one fork's execution data type for another.
 
-- Bounded, versioned, transport-neutral representations of `LightClientPeriodData` and `LightClientBlockData`.
-- A deterministic producer for those artifacts, plus positive and adversarial fixtures.
-- A pure verifier: canonical coverage, exhaustiveness, proof validation, independent `is_better_update` ranking, winner matching.
-- Atomic verify-before-write import into Prysm's database, and round-trip serving through the existing updates-by-range REST endpoint.
-- The path is disabled by default, behind a debug flag, matching the Nimbus default.
+**What is demonstrated.** The end-to-end run is on a two-node mainnet-preset devnet with a fixed fork, plus a fork-transition fixture at the boundary. Mainnet preset is used throughout: no minimal-preset build, real 512-member committees, and real SSZ layouts, so measurements are mainnet numbers rather than projections. The cost is chain time — a completed period plus a boundary beyond it is just over 8192 slots — so the devnet shortens `SECONDS_PER_SLOT`, which is a config value rather than a preset one; at the standard slot time the same run is unattended and takes about a day. The checkpoint-receiver side of the pipeline — `BeaconState` transfer and checkpoint init — is a separate project.
 
-A sync-committee period is the span of slots served by a single sync committee (256 epochs on mainnet, about 27 hours; 8 epochs under the minimal preset). It is the natural unit because the LC protocol retains one best `LightClientUpdate` per period. Extending to a range is mostly repetition of the same mechanism, though it additionally requires chaining anchors across periods and walking the `historical_summaries` index — noted as follow-up work, not claimed as trivial.
+### Supplier side
 
-### Out of scope
-
-- `LightClientBootstrapData` **(steps 8–9 of #8445).** Reconstructing every `LightClientBootstrap` within the period is required for the full pipeline but is a separable artifact type with its own proof shape. Deferred to follow-up work.
-- **P2P transport.** #8445 obtains the update via `light_client_updates_by_range/1` req/resp. This project uses deterministic SSZ files or an in-process adapter, and serves through REST. No libp2p protocol is defined or implemented.
-- The checkpoint consumer, `BeaconState` transfer, and the full checkpoint-init flow.
-- Multi-period and mainnet-preset operation.
-- Producing artifacts from a node that no longer holds the relevant historical states.
-
-### Open questions to close in Phase 0
-
-These require confirmation with Etan before implementation begins, and are the main source of expected drift:
-
-1. Exact semantics of `anchor_update` best-ness under an experimental (non-forward-synced) receiver — see the Trust model section.
-2. Whether the reduced `LightClientOptimisticUpdate` form is fixed or still moving.
-3. Artifact encoding and versioning, once mainnet size estimates are measured.
-4. Confirmation of the derived `is_better_update` input semantics in the "Deriving `is_better_update` inputs" section — notably that `has_finality` holds for all non-genesis reconstructed candidates, and the attested-header derivation when a candidate's attested block lies in period P−1.
+Epoch data is collected continuously during forward sync, not reconstructed afterwards. Every proof in `LightClientEpochData` is anchored to a block body root or a post-state root that the node already holds while processing that block, so a node that collects as it syncs never needs archive states. The supplier's exact contract is expected to settle during implementation.
 
 ## Trust model
 
-The receiver starts from an exact later `LightClientHeader` that has already been authenticated as finalized. In production this anchor comes from the node's own forward LC sync. In this project's experimental setting it is supplied as a pinned, pre-authenticated fixture, and its provenance is an explicit trust assumption.
+The receiver needs one input it cannot derive itself: **a finalized header it already trusts**. In practice this is `LightClientStore.finalized_header`, obtained by the node's ordinary forward light-client sync from a trusted bootstrap root. Everything else is verified against it. All received records and updates are untrusted until verified, and the verifier never replays historical state transitions.
 
-The anchor header must be in period P+1 or later, sealing period P. The reason is structural: the `HistoricalSummary` covering P is only appended during the epoch transition after P's last slot, so no state inside P commits to P's complete `block_roots`.
+Each non-empty slot extends a parent-root chain. Removing a real block, inserting a fabricated one, or altering a header changes the reconstructed endpoint, so the window cannot connect to the authenticated boundary without breaking the hash assumptions. Each record's authenticated `parent_block_header` then becomes the boundary for the next older record. This addresses **completeness as well as validity**: the receiver ranks the complete authenticated candidate set instead of trusting a supplier's "best" label. What the protocol cannot do is force a supplier to answer or to retain data; unavailability is an operational problem, handled by retry, not a soundness problem.
 
-**A note on `anchor_update` best-ness.** Step 3 of #8445 requires verifying that the supplied `anchor_update` is the best known update for P+x. That check presupposes step 3's stated assumption — that the client already has full knowledge of periods > P from its own forward sync or local import. A receiver operating from a pinned fixture does not have that knowledge, and "best known" is in general not a provable property (one cannot prove a counterparty holds nothing better).
-
-This project therefore states the check precisely as: _the anchor is the best update among the candidates the receiver itself has synced for periods > P._ In the experimental setting that candidate set is exactly the pinned fixture, so the check degenerates to a trust assumption, and is implemented as an explicitly stubbed predicate with the production form documented alongside it. This is a deliberate, labelled reduction, not an oversight.
-
-### Preset alignment
-
-`SLOTS_PER_HISTORICAL_ROOT` equals `EPOCHS_PER_SYNC_COMMITTEE_PERIOD × SLOTS_PER_EPOCH` on both presets (mainnet 8192 = 256 × 32; minimal 64 = 8 × 8). Exactly one `HistoricalSummary` therefore covers exactly one sync-committee period. The entire anchoring chain — `block_roots` → `HistoricalSummary` → `anchor_update.header` — depends on this alignment, and the verifier asserts it at startup rather than assuming it.
+**Alignment.** `EPOCHS_PER_SYNC_COMMITTEE_PERIOD` is 256 on mainnet and `MAX_REQUEST_LIGHT_CLIENT_EPOCH_DATA` is also 256, but that coincidence does not make a batch period-aligned: an arbitrary 256-record response straddles two periods unless `start_epoch` is chosen so that it does not. Ranking is defined per period, so the receiver must accumulate whole periods before selecting a winner. On mainnet the coincidence hides the mistake instead of exposing it: a "one request, one period" assumption passes on every aligned batch and fails only on a misaligned one, so a deliberately non-period-aligned `start_epoch` is a required fixture rather than an optional one. The verifier asserts alignment rather than assuming it.
 
 ## Specification
 
-### Constants
+### Constants and range requests
 
-| Name                                 | Mainnet                                                                  | Minimal |
-|--------------------------------------|--------------------------------------------------------------------------|---------|
-| `SLOTS_PER_HISTORICAL_ROOT`          | `8192`                                                                   | `64`    |
-| `EPOCHS_PER_SYNC_COMMITTEE_PERIOD`   | `256`                                                                    | `8`     |
-| `SLOTS_PER_EPOCH`                    | `32`                                                                     | `8`     |
-| `SYNC_COMMITTEE_SIZE`                | `512`                                                                    | `32`    |
-| `CURRENT_SYNC_COMMITTEE_PROOF_DEPTH` | `floorlog2(CURRENT_SYNC_COMMITTEE_GINDEX_ELECTRA)`                       | same    |
-| `FINALIZED_ROOT_PROOF_DEPTH`         | `floorlog2(FINALIZED_ROOT_GINDEX_ELECTRA)`                               | same    |
-| `STATE_ROOTS_PROOF_DEPTH`            | depth of `state_roots[SLOTS_PER_HISTORICAL_ROOT-1]` within `BeaconState` | same    |
-| `HISTORICAL_SUMMARY_PROOF_DEPTH`     | depth of the period's `HistoricalSummary` within the anchor's state      | same    |
-| `SYNC_COMMITTEE_BITS_PROOF_DEPTH`    | depth of `sync_aggregate.sync_committee_bits` within `BeaconBlock`       | same    |
+| Name                                  | Mainnet |
+|---------------------------------------|---------|
+| `SLOTS_PER_EPOCH`                     | `32`    |
+| `EPOCHS_PER_SYNC_COMMITTEE_PERIOD`    | `256`   |
+| `SYNC_COMMITTEE_SIZE`                 | `512`   |
+| `MAX_REQUEST_LIGHT_CLIENT_EPOCH_DATA` | `256`   |
+| `MAX_REQUEST_LIGHT_CLIENT_UPDATES`    | `128`   |
 
-The last four are computed from the Electra SSZ layout in Phase 0 and pinned as generated constants; they are listed here as named quantities rather than magic numbers.
+| Method                           | Request                                 | Meaning of `count`                                      | Response bound                                     |
+|----------------------------------|-----------------------------------------|---------------------------------------------------------|----------------------------------------------------|
+| `LightClientDataBackfillByRange` | `start_epoch: Epoch`, `count: uint64`   | Maximum epoch records, from the highest requested epoch | `MAX_REQUEST_LIGHT_CLIENT_EPOCH_DATA = 256`        |
+| `LightClientUpdatesByRange`      | `start_period: uint64`, `count: uint64` | Period range `[start_period, start_period + count)`     | At most `min(count, 128)`; one per returned period |
 
-### `FinalityTransitionProof`
-
-```python
-class FinalityTransitionProof(Container):
-    header: BeaconBlockHeader
-    finalized_checkpoint: Checkpoint
-    finality_branch: Vector[Bytes32, FINALIZED_ROOT_PROOF_DEPTH]
-```
-
-Two instances bracket the point at which the finalized checkpoint's period crosses into P:
-
-- `finality_transition_pre` — the last block whose finalized checkpoint predates the start of P. If no finalization into P occurred during P, this is `block_roots[SLOTS_PER_HISTORICAL_ROOT-1]`. Default value if P starts at genesis.
-- `finality_transition_post` — the first block whose finalized checkpoint lies within P; its parent must be `finality_transition_pre` (or zero if the parent is genesis). Default value if `finality_transition_pre` is `block_roots[SLOTS_PER_HISTORICAL_ROOT-1]`.
-
-This pair is sufficient to determine, for every candidate in P, whether its finalized header lies in P — the only finality property `is_better_update` needs — without a per-block finality proof.
-
-### `LightClientPeriodData`
-
-```python
-class LightClientPeriodData(Container):
-    first_header: BeaconBlockHeader
-    block_roots: Vector[Root, SLOTS_PER_HISTORICAL_ROOT]
-    finality_transition_pre: FinalityTransitionProof
-    finality_transition_post: FinalityTransitionProof
-    current_sync_committee: SyncCommittee
-    current_sync_committee_branch: Vector[Bytes32, CURRENT_SYNC_COMMITTEE_PROOF_DEPTH]
-    latest_state_root: Root
-    latest_state_root_branch: Vector[Bytes32, STATE_ROOTS_PROOF_DEPTH]
-    historical_summary_branch: Vector[Bytes32, HISTORICAL_SUMMARY_PROOF_DEPTH]
-    anchor_update: LightClientOptimisticUpdate
-```
-
-- `first_header` — the header behind `block_roots[0]`. Enables exhaustiveness verification at the period's leading boundary by distinguishing a block that genuinely belongs to a prior period from withheld data.
-- `block_roots` — the period's complete root list; the ground truth for exhaustiveness, proven against the recovered `HistoricalSummary`.
-- `finality_transition_pre` / `finality_transition_post` — see above.
-- `current_sync_committee` — the committee serving P; required to verify the winning update's signature. Its branch is proven relative to `state_roots[SLOTS_PER_HISTORICAL_ROOT-1]`, the last state of P, whose `current_sync_committee` is still P's.
-- `latest_state_root` / `latest_state_root_branch` — the state root after P's final slot, proven relative to `htr(state_roots)`; together with `block_roots` this recovers the period's `HistoricalSummary`.
-- `historical_summary_branch` — proves the recovered `HistoricalSummary` relative to `anchor_update.header`'s state root. This is the link that makes every other proof in the artifact terminate at the trusted anchor.
-- `anchor_update` — a reduced `LightClientOptimisticUpdate` form of the best known update for period P+x (x ≥ 1, minimized). The anchor for the entire proof chain; its best-ness predicate is defined in the Trust model section.
+The proposed epoch-data protocol ID is `/eth2/beacon_chain/req/light_client_data_backfill_by_range/0/`, serving finalized data only. The existing update protocol is `/eth2/beacon_chain/req/light_client_updates_by_range/1/`. Neither request guarantees that a supplier retains all requested history. Proof depths are computed per fork from the applicable SSZ layout and pinned as generated constants.
 
 ### `LightClientBlockData`
 
 ```python
+class SyncAggregateBranch(
+    Vector[Bytes32, floorlog2(
+        get_generalized_index(BeaconBlockBody, "sync_aggregate"))]
+):
+    pass #TBD
+
 class LightClientBlockData(Container):
-    slot: Slot
+    proposer_index: uint64
+    state_root: Root
     sync_committee_bits: Bitvector[SYNC_COMMITTEE_SIZE]
-    sync_committee_bits_branch: Vector[Bytes32, SYNC_COMMITTEE_BITS_PROOF_DEPTH]
+    sync_committee_signature_root: Root
+    sync_aggregate_branch: SyncAggregateBranch
 ```
 
-- `slot` — the signature slot this entry describes; keyed against `block_roots[slot % SLOTS_PER_HISTORICAL_ROOT]`.
-- `sync_committee_bits` — the participation bitvector from the block body's sync aggregate.
-- `sync_committee_bits_branch` — Merkle proof of the bitvector relative to the block root at that slot.
+The slot is derived from the entry's position, and `parent_root` from the preceding reconstructed header; `proposer_index` and `state_root` are the two header fields not otherwise recoverable. The receiver combines the SSZ root of `sync_committee_bits` with `sync_committee_signature_root` to obtain the `SyncAggregate` root, then folds `sync_aggregate_branch` to reconstruct `body_root`. `sync_committee_signature_root` supports reconstruction and later signature matching.
 
-### Skipped slots
+### `LightClientBootstrapData`
 
-When slot `s` is skipped, `block_roots[s % SLOTS_PER_HISTORICAL_ROOT]` repeats the previous entry. This cuts both ways:
+The full committee is present only for the last checkpoint in a fully finalized period; other checkpoints still carry its branch. The execution field is a block root after Gloas and an execution header before Gloas, so its type and proof path are fork-specific.
 
-- A claimed skip that does not correspond to a repetition is rejected — a supplier cannot fabricate skips.
-- A supplier cannot suppress a real block, because a distinct root in the list with no matching `LightClientBlockData` is a detectable gap.
-- The first entry, `block_roots[0]`, has no in-vector predecessor to compare against; the boundary is resolved with `first_header`, whose block may legitimately lie in a period before P and is then expected to carry no `LightClientBlockData` entry.
+```python
+class LightClientBootstrapData(Container):
+    current_sync_committee: List[SyncCommittee, 1]
+    current_sync_committee_branch: CurrentSyncCommitteeBranch
 
-Validation therefore enforces: every distinct root has exactly one matching `LightClientBlockData` entry; repeated roots have none.
+    execution_block_hash: Root  # `execution` header, before Gloas
+    execution_branch: ExecutionBranch
+```
+
+### `LightClientEpochData`
+
+```python
+class FinalizedCheckpointBranch(
+    Vector[Bytes32, floorlog2(
+        get_generalized_index(BeaconState, "finalized_checkpoint"))]
+):
+    pass #TBD
+
+class LightClientEpochData(Container):
+    epoch: Epoch
+    parent_block_header: BeaconBlockHeader
+    block_data: Vector[LightClientBlockData, SLOTS_PER_EPOCH]
+
+    bootstrap_data: LightClientBootstrapData
+
+    finalized_checkpoint: Checkpoint
+    finalized_checkpoint_branch: FinalizedCheckpointBranch
+```
+
+For record `E`, index `i` represents slot `compute_start_slot_at_epoch(E - 1) + 1 + i`. The vector therefore covers the slots **after the previous epoch boundary through the current boundary**, inclusive.
+
+- `parent_block_header` — the latest block at or before the previous boundary. Once authenticated, it is the boundary for the next older record.
+- A missed slot is exactly `default(LightClientBlockData)` and does not advance the reconstructed header root. A supplier can neither suppress nor fabricate a block, because either breaks the chain at the next non-empty entry. Missed slots create no additional block headers, which matters for ranking: a checkpoint in a new epoch or period can point to the last real block of an older one.
+- `finalized_checkpoint` / `finalized_checkpoint_branch` — finality evidence belonging to the first non-empty entry's state; for an all-empty vector, to `parent_block_header.state_root`. Unlike the standard update's `finality_branch`, this proves the **whole** `Checkpoint`: epoch and root.
+- `bootstrap_data` — belongs to the last non-empty entry, the checkpoint block for that window. Its `current_sync_committee` is supplied only for the last checkpoint in a fully finalized period; other checkpoints still carry the branch.
+- The last non-empty entry is by definition the latest block at or before the boundary, so a missed boundary slot needs no special case and a window can never hold two checkpoint blocks. An all-empty window advances no header, contributes no candidates, carries default `bootstrap_data`, and anchors its finality evidence to `parent_block_header.state_root`.
+
+### Proofs and verification targets
+
+| Evidence                                                               | Verification target                                                                                  |
+|------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|
+| Bits, signature root, and `sync_aggregate_branch`                      | Reconstructed `body_root`, then the header chain's authenticated endpoint                            |
+| `finalized_checkpoint` and its branch                                  | First non-empty block's authenticated `state_root`, or the parent state root for an all-empty vector |
+| `bootstrap_data.execution_block_hash` and `execution_branch`           | Last non-empty block's authenticated `body_root`                                                     |
+| `bootstrap_data.current_sync_committee` and its branch                 | Corresponding checkpoint block's authenticated `state_root`                                          |
+| Full update's finality/next-committee branches and aggregate signature | Its `attested_header` and the authenticated historical signing committee                             |
+
+Branch lengths and proof paths follow the applicable fork. The draft's **response context fork** is determined by the last non-empty `block_data` entry, or by `epoch` if all entries are empty. Each chunk is decoded independently.
 
 ### Deriving `is_better_update` inputs
 
-For each candidate at signature slot `s`:
+A candidate is a possible standard `LightClientUpdate`, not a separate wire object. A canonical block supplies the sync aggregate and `signature_slot`; its parent supplies the `attested_header`. Under the [standard full-node collection rules](https://github.com/ethereum/consensus-specs/blob/master/specs/altair/light-client/full-node.md#create_light_client_update), eligible candidates have a post-Altair parent, meet the minimum participation requirement, and have attested and signature slots in the same period.
 
-| Input                         | Derivation                                                                                                                                                                             |
-|-------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `max_active_participants`     | `SYNC_COMMITTEE_SIZE` from the preset.                                                                                                                                                 |
-| `num_active_participants`     | Population count of `LightClientBlockData[s].sync_committee_bits`.                                                                                                                     |
-| `signature_slot`              | `s` — the slot whose block carries the sync aggregate.                                                                                                                                 |
-| `attested_header.beacon.slot` | Scan `block_roots` backwards from `s−1` for the first entry distinct from its predecessor; that block is the most recent ancestor the aggregate attests to (not necessarily at `s−1`). |
-| `has_relevant_sync_committee` | `period(attested_slot) == period(s)`, computed from slots; `first_header` resolves the period boundary case.                                                                           |
-| `has_finality`                | True for all non-genesis candidates (to be confirmed in Phase 0; see open question 5).                                                                                                 |
-| `has_sync_committee_finality` | `period(finalized) == period(attested)`, determined by the candidate's position relative to the `finality_transition_pre`/`finality_transition_post` boundary.                         |
-| Final tiebreakers             | Larger `num_active_participants`, then smaller `attested_slot`, then smaller `signature_slot`.                                                                                         |
+| Input                         | Derivation                                                                                                                                                                      |
+|-------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `max_active_participants`     | `SYNC_COMMITTEE_SIZE` from the preset.                                                                                                                                          |
+| `num_active_participants`     | Population count of the entry's `sync_committee_bits`.                                                                                                                          |
+| `signature_slot`              | `s`, from the entry's index within `block_data` and the record's `epoch`.                                                                                                       |
+| `attested_header`             | The preceding reconstructed non-empty header — the most recent ancestor the aggregate attests to, not necessarily at `s-1`.                                                     |
+| `has_relevant_sync_committee` | `period(attested_slot) == period(s)`, computed from slots.                                                                                                                      |
+| `has_finality`                | `finalized_checkpoint.epoch != GENESIS_EPOCH` for the window holding the attested header — the condition under which `create_light_client_update` populates `finalized_header`. |
+| `has_sync_committee_finality` | `finalized_checkpoint.root in reconstructed_block_roots(period(attested))`.                                                                                                     |
+| Final tiebreakers             | Larger `num_active_participants`, then smaller `attested_slot`, then smaller `signature_slot`.                                                                                  |
 
-No aggregate signature is needed for ranking: the blocks carrying the bits are proven canonical, and the chain's own state transition already verified their aggregates when it accepted them.
+One proven `Checkpoint` per record is enough for every candidate in it. `finalized_checkpoint` is written during epoch processing, so every block in an epoch carries the same value in its post-state; the record's proof is therefore the finality evidence for every candidate whose attested header lies in that window. When a candidate's attested block is the last non-empty entry of the previous window, its evidence comes from that record instead.
+
+During the epoch-data phase the receiver does not yet have `finalized_header.beacon.slot`, but the same-period comparison does not need its exact value. For a candidate whose attested header is in period `P`, the receiver builds the set of authenticated roots of actual, non-empty headers reconstructed in `P` and checks membership. If the root belongs to that set, the finalized and attested headers are in the same period; otherwise the finalized header belongs to an older one. The receiver must **not** infer this from `finalized_checkpoint.epoch`.
+
+After `LightClientUpdatesByRange(P, 1)` returns the winner, the exact slot comes from `update.finalized_header.beacon.slot`, and the receiver runs the standard full-update checks using the actual header, branches, and aggregate signature. It must not invent a slot or construct a placeholder update merely to call the unmodified `IsBetterUpdate`. Equivalence to `IsBetterUpdate` holds by construction over these inputs, and is validated by differential testing against Prysm's live LC collection path.
 
 ## Verifier requirements
 
-The verifier is a pure function — no I/O, no chain access, no direct database mutation. It must:
+The core verifier is deterministic and separate from networking and database writes. It must:
 
-1. Reject malformed, unsupported, duplicate, reordered, or oversized input before any cryptographic work.
-2. Bind the period to the exact trusted finalized header, and evaluate the `anchor_update` predicate as defined in the Trust model section.
-3. Assert preset alignment and recover the `HistoricalSummary` from `block_roots`, `latest_state_root`, and `latest_state_root_branch`; verify it against the anchor.
-4. Reconstruct canonical block and skipped-slot coverage for P from the committed `block_roots` list.
-5. Reject any input with missing eligible candidates or unproven coverage gaps.
-6. Verify the required ancestry, committee, finality, and Merkle relationships.
-7. Run Prysm's existing `IsBetterUpdate` over the complete reconstructed candidate set.
-8. Validate the proposed standard `LightClientUpdate` in that reconstructed context — including its sync-aggregate signature against `current_sync_committee` — and require it to match the independently computed winner.
+1. Enforce SSZ, list, and branch bounds, supported fork schemas, request alignment, and contiguous backward coverage before any cryptographic work; stop at the configured lower bound, never before Altair.
+2. Reconstruct headers and missed slots, and connect every epoch window to an authenticated boundary.
+3. Verify all required finality, execution, and committee evidence, and committee period ownership, before accepting a period as complete.
+4. Derive the complete eligible candidate set and reproduce Prysm's `IsBetterUpdate` rules without fabricating incomplete `LightClientUpdate` objects.
+5. Match the fetched update against the locally selected winner — attested header, signature slot, participation bits, expected finality and committee facts, and `hash_tree_root(sync_committee_signature)` — then validate its full proofs and BLS signature.
+6. Never import a signature-root-only or ranking-only object, and never feed a historical update into the current forward-sync store as though it were new.
 
-Only a fully verified update is written, atomically. Importing an equivalent existing record is a no-op; a conflicting record follows a non-overwrite policy and surfaces an error.
-
-## Resource bounds
-
-Estimated figures, to be measured in Phase 0 and confirmed in Phase 4:
-
-| Quantity         | Mainnet                                | Minimal           |
-|------------------|----------------------------------------|-------------------|
-| `block_roots`    | 8192 × 32 B = 256 KiB                  | 64 × 32 B = 2 KiB |
-| Per-block data   | ~8 B slot + 64 B bits + branch ≈ 330 B | ≈ 270 B           |
-| Per-period total | ≈ 2.6 MB (~8000 blocks)                | ≈ 19 KB           |
-| Periods per year | ≈ 321                                  | —                 |
-| **Per year**     | **≈ 0.9 GB**                           | —                 |
-
-This is consistent with the roughly 1 GB/year figure discussed with Etan, and is the cost the enshrinement alternative would avoid.
+Only a fully verified update is written, atomically. An equivalent existing record is a no-op; a conflicting one follows a non-overwrite policy and surfaces an error. Invalid, missing, or contradictory evidence returns an error without importing the affected period.
 
 ## Roadmap
 
-Twelve weeks (due to late of the submission of this proposal), phases non-overlapping, with an early Prysm integration slice to de-risk the client-side work:
+Twelve weeks, phases non-overlapping. Phase 0 is already under way: reading the draft, mapping it onto Prysm, and specifying the contract above is the work that produced this proposal. Eight weeks remain for implementation and evaluation.
 
-| Phase                                     | Weeks | Deliverables                                                                                                                                                                                                                                                           |
-|-------------------------------------------|-------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **0 — Protocol contract**                 | 1–2   | Close the open questions with Etan: anchor model and predicate semantics, period sealing, exhaustiveness mechanism, artifact encoding/versioning, generated proof-depth constants, resource-bound validation, EIP-7658/#3614 mapping, documented security assumptions. |
-| **1 — Artifacts & producer**              | 3–4   | Electra/minimal SSZ containers; deterministic producer; positive fixtures.                                                                                                                                                                                             |
-| **2 — Thin integration slice**            | 5     | Import path and REST round-trip with a hand-constructed, pre-trusted update; de-risks Prysm integration before the verifier exists.                                                                                                                                    |
-| **3 — Pure verifier**                     | 6–8   | Canonical coverage, exhaustiveness, proof verification, input derivation, independent ranking, winner matching.                                                                                                                                                        |
-| **4 — Adversarial fixtures & evaluation** | 9–10  | Adversarial suite (omitted candidates, forged skips, wrong anchors, oversized and reordered inputs); benchmarks; Nimbus mapping; reproducible demo.                                                                                                                    |
-| **5 — Wire-up & hardening**               | 11    | Real verifier behind the import path; atomic verify-before-write; non-overwrite behaviour; flag defaults.                                                                                                                                                              |
-| **Buffer**                                | 12    | Absorb protocol and client review feedback without scope expansion.                                                                                                                                                                                                    |
+| Phase                            | Weeks           | Deliverables                                                                                                                                                                                                                                      |
+|----------------------------------|-----------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **0 — Protocol contract**        | 1–4 (under way) | The epoch-data contract specified above: containers and proof paths, candidate evidence mapping, boundary and empty-window rules, fork scope, retry policy, generated proof-depth constants, documented security assumptions. Reviewed with Etan. |
+| **1 — Epoch data and supplier**  | 5–6             | Fork-aware containers, deterministic supplier-side collection, and mainnet-preset positive fixtures.                                                                                                                                              |
+| **2 — Verification and ranking** | 7–9             | Header-chain verification, complete coverage, evidence checks, candidate derivation, and agreement with Prysm's live LC selection.                                                                                                                |
+| **3 — Prysm integration**        | 10–11           | Epoch-data range exchange between two nodes, full-update acquisition, winner matching, historical proof and BLS validation, atomic import, `LightClientBootstrap` construction, and REST round trip.                                              |
+| **4 — Evaluation and review**    | 12              | Adversarial and boundary fixtures, measurements, and mentor review.                                                                                                                                                                               |
 
-## Evaluation targets
-
-Measured and reported in Phase 4:
-
-- Wall-clock verification time for one minimal-preset period, with a projected mainnet estimate.
-- Peak memory during verification.
-- Measured artifact sizes versus the Resource bounds estimates, with variances explained.
-- Every adversarial fixture rejected with zero database mutations.
+There is no separate buffer week. Phase 4 is the compressible one: if earlier phases slip, evaluation narrows to the devnet end-to-end run and the adversarial suite, and integration ships as a draft PR.
 
 ## Possible challenges
 
-1. **The design is not a ratified specification.** Details may move during review; Phase 0 exists to bound that drift, and the open-questions list makes the dependency explicit rather than open-ended.
-2. **Proving absence is harder than proving presence.** Showing that a supplier did not omit a stronger canonical candidate is the hard part; the pre-committed `block_roots` list is what converts it from a trust question into a structural one.
-3. **Reduced anchor best-ness in the experimental setting.** The stubbed predicate must either be accepted as a labelled trust assumption or extended with a later-period LC store, which would expand scope.
-4. **Producer state availability.** Many nodes no longer hold the historical post-states needed to produce artifacts, which limits who can seed the network initially.
-5. **Minimal-to-mainnet scaling.** Measurements may come in above projections, motivating more compact proof encodings or sharding artifact serving across peers.
-6. **Prysm reviewer availability is unconfirmed.** The largest single risk to Phase 5. Mitigation: raise the integration approach with the Prysm team during Phase 0; if no reviewer is available, Phases 1–4 still stand alone as a specified, tested, fixture-backed verifier that any client can adopt, and integration ships as a draft PR rather than a merged one.
+1. **The design is not a ratified specification.** The draft may move, and its author marks the specification section itself as provisional. This proposal pins its own interpretation wherever the draft leaves room, so drift lands on the containers and proof paths rather than on the verifier's logic — coverage, ranking, matching, and import are unaffected by a change in field layout. Interpretation questions found while writing the contract go back to the draft during Phase 0.
+2. **Completeness is structural; eligibility is not.** The reconstructed header chain fixes which blocks existed, which is the part that would otherwise rest on trust. What it does not fix is the filtering: each candidate must be matched to the right finality evidence and to the spec's collection rules. The evidence for a candidate belongs to the record whose window carries its attested block's epoch, and the epoch-boundary slot is the case where that is not the obvious record — an off-by-one there silently flips `has_finality` and can change the winner without any proof failing. Mitigation: differential testing against Prysm's live LC selection, plus explicit fixtures for missed boundary slots and epoch and period transitions.
+3. **Winner mismatch is expected, not exceptional.** `LightClientUpdatesByRange` returns the supplier's own selection rather than a named update, so a supplier with incomplete history can return an update that does not match the locally computed winner. Honest suppliers that collected data continuously converge on the same winner, so a mismatch signals an incomplete supplier. The retry policy must say so rather than treat it as a protocol error.
+4. **The supply side has to be bootstrapped.** Epoch data can be verified but not conjured. The state-anchored evidence — `finalized_checkpoint` and `current_sync_committee` with their branches — requires the post-state as it existed when the block was processed, and a block cannot be undone to recover it. A node that only backfilled blocks therefore cannot regenerate epoch data for periods it never processed. Historical data originates from suppliers that sync forward with collection enabled, then spreads from suppliers to receivers. Mitigation: the demonstration devnet creates it by construction; the retention footprint is measured rather than assumed, and retaining a per-node subset of older data is the available lever if the full history is too large to keep everywhere.
+5. **Phase 3 is the schedule risk, and mainnet preset adds chain time to it.** Two-node exchange, winner matching, historical proof and BLS validation, import, bootstrap construction, and REST round trip all land in two weeks, and a completed period plus a boundary beyond it is just over 8192 slots of devnet time. Mitigation: the devnet is started early and runs unattended with a compressed `SECONDS_PER_SLOT`, and the transport can fall back to SSZ fixtures or an in-process adapter without weakening any claim, since the data is self-verifying and transport-neutral, and bootstrap construction is assembly of already-verified fields rather than new proof work.
 
 ## Success criteria
 
-- Prysm deterministically produces valid artifacts and the matching standard update for one completed Electra/minimal sync-committee period.
-- The verifier reconstructs the complete canonical candidate set and selects the same winner as Prysm's live `IsBetterUpdate` path.
-- Every adversarial fixture — invalid, incomplete, non-canonical, mismatched, oversized — is rejected without database mutation.
-- A verified missing update is imported atomically; equivalent and conflicting existing records follow the defined non-overwrite behaviour.
-- Prysm's existing updates-by-range REST endpoint returns the imported update byte-identically.
-- Artifact sizes and verification costs are measured and published, with mainnet projections stated.
+- Backfill of at least one complete mainnet-preset sync-committee period — 256 epochs, 8192 slots — from an explicit trusted LC boundary, with no trust in the supplier's winner selection.
+- The verifier reconstructs the complete canonical candidate set and selects the same winner as Prysm's live LC collection on supported fixtures, including missed slots, finality changes, and fork boundaries.
+- Every adversarial fixture — forged skips, omitted candidates, altered proofs, wrong committees, mismatched updates, incomplete periods, oversized and reordered inputs — is rejected with zero database mutations.
+- A verified missing update is fetched, matched, fully validated, and imported atomically; equivalent and conflicting existing records follow the defined non-overwrite behaviour.
+- Prysm's existing updates-by-range REST endpoint returns the imported update byte-identically, and a `LightClientBootstrap` built from verified `bootstrap_data` is served through the existing bootstrap endpoint.
+- Encoded epoch-data sizes, verification wall-clock time, and peak memory are measured and reported on the mainnet preset directly, with no projection step.
+
+State snapshot sync and the checkpoint-receiver side of the pipeline are separate projects.
 
 ## Collaborators
 
-### Fellows
+**Fellow:** Jeff Chung ([jeffoodchain](https://github.com/jeffoodchain))
 
-- Jeff Chung ([jeffoodchain](https://github.com/jeffoodchain))
-- Kapil (TBD)
-
-### Mentors
-
-- Etan Kissling ([etan-status](https://github.com/etan-status)), Nimbus.
-* Bastin(TBD), Prysm.
+**Mentors:** Etan Kissling ([etan-status](https://github.com/etan-status)), Nimbus; Bastin ([Inspector-Butters](https://github.com/Inspector-Butters)), Prysm.
 
 ## Resources
 
-- [EPF Cohort 7 project idea: decentralized consensus-layer checkpoint sync](https://github.com/eth-protocol-fellows/cohort-seven)
-- [Altair light-client sync protocol](https://github.com/ethereum/consensus-specs/blob/dev/specs/altair/light-client/sync-protocol.md)
-- [Altair light-client full-node data collection](https://github.com/ethereum/consensus-specs/blob/dev/specs/altair/light-client/full-node.md)
-- [Altair light-client P2P interface](https://github.com/ethereum/consensus-specs/blob/dev/specs/altair/light-client/p2p-interface.md)
-- [Nimbus PR #8445 — historical LC data backfill design](https://github.com/status-im/nimbus-eth2/pull/8445)
-- [consensus-specs #3614 — enable LC data backfill by tracking best `SyncAggregate`](https://github.com/ethereum/consensus-specs/pull/3614)
-- [consensus-specs #3553 — canonical-only LC data collection](https://github.com/ethereum/consensus-specs/pull/3553)
-- [EIP-7658 — Light client data backfill](https://eips.ethereum.org/EIPS/eip-7658)
+- [Decentralized CL sync draft](https://hackmd.io/@etan-status/decentralized-cl-sync) — the design this project implements. Provides the container shapes, the epoch-data range protocol, and the rollout model.
+- [Nimbus PR #8445](https://github.com/status-im/nimbus-eth2/pull/8445) — an earlier, period-granular formulation of the same goal, anchored on `HistoricalSummary` and a committed `block_roots` list. Superseded for this project by the epoch-data draft, which needs no archive states on the supplier side.
+- [consensus-specs #3553](https://github.com/ethereum/consensus-specs/pull/3553) — canonical-only LC data collection. Establishes the canonicality requirement this verifier enforces.
+- [consensus-specs #3614](https://github.com/ethereum/consensus-specs/pull/3614) — tracking the best `SyncAggregate` in `BeaconState`; the spec-side counterpart that would remove the need to transfer per-slot ranking inputs at all.
+- [EIP-7658](https://eips.ethereum.org/EIPS/eip-7658) — the EIP formulation of the same direction as #3614; currently Stagnant. This project follows the epoch-data model instead, which requires no fork.
+- [Altair light-client sync protocol](https://github.com/ethereum/consensus-specs/blob/master/specs/altair/light-client/sync-protocol.md) — validation and `is_better_update`.
+- [Altair light-client full-node data collection](https://github.com/ethereum/consensus-specs/blob/master/specs/altair/light-client/full-node.md) — update construction and eligibility.
+- [Altair light-client P2P interface](https://github.com/ethereum/consensus-specs/blob/master/specs/altair/light-client/p2p-interface.md) — the existing `LightClientUpdatesByRange` method.
+- [Gloas light-client specifications](https://github.com/ethereum/consensus-specs/tree/master/specs/gloas/light-client) — fork-specific execution and bootstrap proof shapes.
 - [Prysm repository](https://github.com/OffchainLabs/prysm)
+- [EPF Cohort 7 project idea: decentralized consensus-layer checkpoint sync](https://github.com/eth-protocol-fellows/cohort-seven)
 - [EPF Cohort 5 project: Light Client Server Support in Prysm](https://github.com/eth-protocol-fellows/cohort-five)
+
