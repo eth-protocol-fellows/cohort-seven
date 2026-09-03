@@ -33,7 +33,7 @@ These are the research questions we want to explore:
 The data will be collected using a local Ethereum archive node together with publicly accessible data.
 - Network data will be primarily collected from [Xatu dataset](https://github.com/ethpandaops/xatu-data/tree/master) (e.g. `canonical_execution_storage_diffs` for write counts, `canonical_execution_storage_reads` for read counts). To store data from the EthPandaOps ClickHouse database, we will set up Clickhouse database locally.
 - From archive node, we will collect recent state data that is not covered by Xatu dataset, by tracing state changes for each block using Erigon trace APIs.
--  To identify the contracts, we will use labels from [prior work]((https://ethresear.ch/t/the-anatomy-of-ethereum-s-state-access/25317#p-60995-who-sits-at-the-top-19)) by weiihann, and public datasets like [Eth-labels](https://github.com/dawsbot/eth-labels) and [Kaggle](https://www.kaggle.com/datasets/hamishhall/labelled-ethereum-addresses).
+-  To identify the contracts, we will use labels from [prior work](https://ethresear.ch/t/the-anatomy-of-ethereum-s-state-access/25317#p-60995-who-sits-at-the-top-19) by weiihann, and public datasets like [Eth-labels](https://github.com/dawsbot/eth-labels) and [Kaggle](https://www.kaggle.com/datasets/hamishhall/labelled-ethereum-addresses).
 
 ### First half (H1)
 
@@ -159,11 +159,11 @@ The project will be considered successful if it:
 
 ### Fellows 
 
-Solo project by [Aiden](https://github.com/sgtSong)
+Solo project by Aiden ([@sgtSong](https://github.com/sgtSong))
 
 ### Mentors
 
-I have no mentors helping me out so far.
+Ng Wei Han ([@weiihann](https://github.com/weiihann))
 
 ## Resources
 
