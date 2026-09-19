@@ -10,7 +10,7 @@ This limits decentralized checkpoint sync. A new node walks LC updates forward t
 
 ## Project description
 
-The draft's idea: sync a `LightClientStore`, then backfill epoch by epoch from `compute_epoch_at_slot(store.finalized_header.slot)`, verify every field, and simulate `is_better_update`.
+The draft's idea: sync from a trusted root, then backfill epoch by epoch from `compute_epoch_at_slot(store.finalized_header.slot)`, verify every field, and simulate `is_better_update`.
 
 There are two roles:
 
@@ -20,8 +20,8 @@ There are two roles:
 ### Flow
 
 1. **Start from a trusted header.** Use `LightClientStore.finalized_header`, or a full node's own finalized header.
-2. **Request epoch data.** Call `LightClientDataBackfillByRange(start_epoch, count)` and walk backward, up to 256 records per request.
-3. **Verify.** Rebuild block headers from `block_data`, check that the parent-root chain ends at the trusted header, and verify the Merkle branches. The verified `parent_block_header` becomes the trusted header for the next older record.
+2. **Request epoch data.** Call `LightClientDataBackfillByRange(start_epoch, count)` and walk backward. 
+3. **Verify.** Rebuild block headers from `block_data`, check that the parent-root chain ends at the trusted header. The verified `parent_block_header` becomes the trusted header for the next older record.
 4. **Select the best update locally.** Once a whole sync-committee period is verified, simulate `is_better_update` over its candidates.
 5. **Fetch the full update.** Call the existing `LightClientUpdatesByRange(start_period, 1)`. Prysm needs client-side support for this request.
 6. **Match and validate.** Check that the update matches the local winner, verify its proofs, and check that `hash_tree_root(sync_committee_signature)` equals the verified `sync_committee_signature_root`.
@@ -90,11 +90,9 @@ class LightClientEpochData(Container):
 
 ### Prysm implementation
 
-- **Supplier:** collect epoch data during forward sync, while the blocks and states are still available, and serve the range request.
+- **Supplier:** collect epoch data during forward sync, while the blocks and states are still available, and serve the range request. For the rest of the data, a supplier starts from genesis state and run state transition function for each block and store the data in the meanwhile.
 - **Receiver:** request epoch data, verify it, simulate `is_better_update` per period, then fetch, match, and import the full update.
 - **Serving:** return imported updates through the existing LC REST endpoints.
-- **Forks:** proof shapes are fork-specific. Gloas is the key case, because the `execution` field changes there.
-- The feature is disabled by default behind a debug flag.
 
 ## Roadmap
 
@@ -110,11 +108,10 @@ If earlier phases slip, Phase 4 narrows to a devnet end-to-end run, and the inte
 
 ## Possible challenges
 
-1. **The draft is not a final specification.** Container layouts may change. Keeping the verifier separate from the wire format limits the impact.
+1. Container layouts may change during implementing. Keeping the verifier separate from the wire format limits the impact.
 2. **Edge cases in ranking.** Missed slots, epoch boundaries, and period boundaries can change which update wins without any proof failing. Differential tests against Prysm's live LC collection will catch this.
-3. **Suppliers may return a different update.** `LightClientUpdatesByRange` returns the supplier's own choice. A supplier with incomplete history can return an update that does not match the local winner, so the receiver must retry rather than fail.
-4. **Epoch data must be collected during forward sync.** A node that only backfilled blocks cannot produce it later, because it never had the states.
-5. **Devnet time.** One full period is 8192 slots on the mainnet preset. The devnet shortens the slot time so the test fits in the schedule.
+3. **Epoch data must be collected during forward sync.** A node that only backfilled blocks cannot produce it later, because it never had the states.
+4. **Devnet time.** One full period is 8192 slots on the mainnet preset. The devnet shortens the slot time so the test fits in the schedule.
 
 ## Goal of the project
 
