@@ -31,16 +31,22 @@ The test suite is structured around three technical pillars:
 * **Cofactor / Isogeny Point Fuzzing**: Parametrizes multi-pair pairings combining valid generator elements with torsion points.
 * **Negative Permutations**: Verifies that failure in any single pair ($i \in \{1 \dots k\}$) guarantees total precompile rejection.
 
-### 3. Arithmetic & On-Curve Validation (`BLS12_G1ADD` / `BLS12_G2ADD`)
+### 3. Multi-Scalar Multiplication Validation (`BLS12_G1MSM` / `BLS12_G2MSM`)
+* **Subgroup Enforcement**: Verifies strict rejection of non-subgroup points (including small-order $(0, 2)$ points) under both zero scalars ($s=0$) and non-zero scalars ($s=1$), preventing lazy bypass in client implementations.
+* **Dirty Padding & Modulus Overflow in Batches**: Tests dirty top-16 byte padding and $x \ge p$ coordinates in single-pair and multi-pair batches ($k=2, 3$).
+* **Calldata Length Misalignment**: Confirms rejection of unaligned payloads ($160k \pm 1$ for G1, $288k \pm 1$ for G2).
+* **Scalar Modulo Equivalence & Cancellation**: Tests boundary scalars ($s=r, r+1, 2^{256}-1$) and multi-pair linear cancellations to the point at infinity ($\mathcal{O}$).
+
+### 4. Arithmetic & On-Curve Validation (`BLS12_G1ADD` / `BLS12_G2ADD`)
 * Verifies that addition operations correctly process valid curve points regardless of subgroup membership, confirming that subgroup restrictions apply strictly where specified by EIP-2537.
 
 ## Roadmap
 
-| Milestone | Timeline | Deliverables |
-|---|---|---|
-| M1: Environment & Baseline Suite | Week 1–2 | Bare-metal Nix Flake environment, local harness with `evm t8n`, first 47 unit test vectors (141 fixtures). |
-| M2: Multi-Client Differential Fuzzing | Week 3–4 | Run generated fixtures against Nethermind, Besu, and Reth; document cross-client consensus behavior. |
-| M3: Upstream PR & EELS Integration | Week 5–6 | Submit upstream Pull Request to `ethereum/execution-specs` / EEST with full CI validation and mentor review. |
+| Milestone | Timeline | Deliverables | Status |
+|---|---|---|---|
+| M1: Environment & Baseline Pairing Suite | Week 1–2 | Bare-metal Nix Flake environment, local harness with `evm t8n`, first 47 unit test vectors (141 fixtures). | **Completed** |
+| M2: MSM Hardening & Upstream Integration | Week 3–4 | Extended suite with G1MSM/G2MSM padding, subgroup bypass prevention, boundary scalars, total 447 fixtures. Upstream PR [#3641](https://github.com/ethereum/execution-specs/pull/3641) submitted. | **Completed** |
+| M3: Multi-Client Differential Fuzzing | Week 5–6 | Run generated fixtures against Nethermind, Besu, and Reth `t8n` backends; document cross-client consensus behavior. | In Progress |
 
 ## Possible challenges
 
