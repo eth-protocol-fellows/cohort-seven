@@ -13,6 +13,7 @@ To create a project, write your proposal based on [template](./project-template.
 | [EIP-8304: Trustless Log and Transaction Index in geth](./eip-8304-trustless-log-index.md) | [Vansh Sahay](https://github.com/vanshsahay) |
 | [EIP-8304: Trustless Log and Transaction Index in reth](./reth-eip8304-trustless-index.md) | [Zidan](https://github.com/mzf11125) |
 | [Ephemery Testnet Implementation on reth and Lighthouse](./ephemery-testnet-implementation%20on%20reth%20and%20lighthouse.md) | [Isaac](https://github.com/isaac-akhigbe) |
+| [Erigon FOCIL (EIP-7805) Implementation](./erigon-focil-eip7805.md) | [Sagar](https://www.github.com/SoarinSkySagar) |
 | [Erigon Federated History Network](./erigon-federated-history-network.md) | [Steven](https://github.com/stevemilk) |
 | [Erigon SSZ Execution Blocks and EIP-7807](./erigon-ssz-execution-blocks-eip-7807.md) | [Jack CC](https://github.com/JackCC703) |
 | [Erigon SSZ Query Language](./Erigon-SSZ-Query-Language.md) | [Sagar Rana](https://github.com/SoarinSkySagar) |
