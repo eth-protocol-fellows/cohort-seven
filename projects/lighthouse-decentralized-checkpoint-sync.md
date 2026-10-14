@@ -93,13 +93,14 @@ Our solution is a trust-minimized checkpoint sync strategy borrowed from/inspire
 - **Fallback for On-Demand Generation:** For nodes that cannot run the full backfill (e.g., due to pruned states), modify `get_light_client_bootstrap()` and `get_light_client_updates()` to fall back to on-demand computation: if the DB entry is missing, load the archived state from the freezer DB, compute the proof or update, store it, and return it. The pattern for this already exists in `get_or_compute_prev_block_cache()`.
 - **Testing:** Ensure Lighthouse passes the consensus-specs light client data collection tests. Currently, Lighthouse lacks the data collection coverage because it cannot reconstruct the full historical sequence.
 
-**Data Collection Test Handler (Aarish)**
+**Data Collection Test Handler**
 
 The `light_client_data_collection` test handler has been implemented and the handler follows Lighthouse's `LoadCase` + `Case` trait pattern:
 
 - `LoadCase` reads `initial_state.ssz_snappy` into a Beacon state, parses `steps.yaml` using typed structs, and loads `SignedBeaconBlock` objects using fork-aware SSZ deserialization via `from_ssz_bytes_by_fork`
 - `Case` initializes a `BeaconChainHarness` from the initial state, processes `NewBlock` steps by importing blocks and calling `recompute_and_cache_updates` directly on `light_client_server_cache` using the block's own sync aggregate
-- `NewHead` step handling is in progress — will verify the light client cache against expected values loaded from SSZ files
+- `NewHead` step handling is complete. The light client cache is verified against expected values loaded from SSZ files. Altair, Bellatrix, and Capella pass; Deneb-and-later forks and cross-fork reorg cases remain outstanding.
+- Three spec compliance bugs were found and fixed as standalone PRs during implementation: #9816 (finality update skipped at genesis), #9865 (empty finalized header at genesis), #9903 (is_latest wrong comparison criteria).
 - Draft PR: [sigp/lighthouse#9666](https://github.com/sigp/lighthouse/pull/9666)
 
 ### Phase 2: LightClientBeaconSnapshot Endpoint
@@ -110,13 +111,28 @@ The snapshot contains: `beacon_block_root`, state root, and a Merkle proof that 
 
 This requires nodes to collect and serve the snapshot data, and likely requires an addition to the Beacon API or a new libp2p protocol.
 
-### Phase 3: Beacon Sync Protocol — State Chunking
+### Phase 3: Beacon Sync Protocol: State Chunking
 
 Design the protocol for fetching the `BeaconState` in verifiable chunks. The proposed approach is:
 
 - Chunk by top-level `BeaconState` fields (and possibly sub-chunk large fields like `validators` by index range). This aligns with SSZ's natural Merkle tree structure, allowing each chunk to be verified with standard Merkle proofs against known generalized indices.
 - Parallel fetching from multiple peers, with immediate rejection and re-request of any chunk that fails verification.
 - The chunking strategy should align with SSZ's natural tree layout to avoid extra hashing.
+
+**State Chunking Implementation**
+
+The SSZ types and chunking scheme have been implemented in `consensus/types/src/beacon_state_summary/`:
+
+- `ListSummary { items_root: Root, num_items: uint64 }`: A stand-in for a `List` field that reproduces the field's exact `hash_tree_root` without carrying its contents. This works because a two-field `Container`'s merkleization is mathematically identical to a `List`'s `mix_in_length` step.
+- `BeaconStateSummary<E>`: A `progressive_container` mirroring all 46 fields of `BeaconStateGloas`, with the 14 `List`/`ProgressiveList` fields replaced by `ListSummary`. Targets Gloas only (confirmed with Etan). Checkpoint sync only needs a recent state, and Gloas is already live on `plataberget`.
+- `BeaconStateSnapshot<E>` and `BeaconStatePart`: the container types for the two network responses.
+- A per-field chunking table derived from the <0.5MB target, verified against Etan's three given values (all three match exactly), plus a `ChunkLayout` resolving `beacon_state_parts_by_range`'s flat `chunk_index` to a field and item range.
+
+**Blocker:** `milhouse` (Lighthouse's copy-on-write collection type backing `BeaconState`'s `List`/`ProgressiveList` fields) has no public accessor for the pre-`mix_in_length` items root. The value needed to build a `ListSummary` from a live state. Raised with Michael Sproul; a small additive getter would resolve it.
+
+**Open questions with Etan:** what `BeaconStatePart.branch` should prove (single-subtree vs. multiproof), whether chunk sizes must align to progressive-list subtree boundaries, and whether `chunk_index` should number chunks as a flat sequence across all fields.
+
+Draft PR: [sigp/lighthouse#9917](https://github.com/sigp/lighthouse/pull/9917)
 
 ### Phase 4: Integration & End-to-End Testing
 
@@ -184,6 +200,10 @@ This project will be considered successful when a new peer can join the Ethereum
 ## Resources
 
 - [Aarish's draft PR — Data collection test handler](https://github.com/sigp/lighthouse/pull/9666)
+- [Bug fix PR #9816 — Finality update skipped at genesis](https://github.com/sigp/lighthouse/pull/9816)
+- [Bug fix PR #9865 — Empty finalized header at genesis](https://github.com/sigp/lighthouse/pull/9865)
+- [Bug fix PR #9903 — is_latest wrong comparison criteria](https://github.com/sigp/lighthouse/pull/9903)
+- [Phase 3 PR #9917 — Checkpoint sync verification and state chunking types](https://github.com/sigp/lighthouse/pull/9917)
 - [Altair light client sync protocol](https://github.com/ethereum/consensus-specs/blob/master/specs/altair/light-client/sync-protocol.md)
 - [Data collection test format](https://github.com/ethereum/consensus-specs/blob/master/tests/formats/light_client/data_collection.md)
 - [Etan's Nimbus implementation reference](https://github.com/status-im/nimbus-eth2/blob/stable/tests/consensus_spec/test_fixture_light_client_data_collection.nim)
