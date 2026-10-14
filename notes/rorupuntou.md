@@ -8,11 +8,10 @@
 
 ## Development Updates
 
-- **Development Update (EIP-2537 Hardening & Upstream Integration):** [development-update-eip2537-hardening.md](./development-update-eip2537-hardening.md)
-  - Covers upstream PR [ethereum/execution-specs#3641](https://github.com/ethereum/execution-specs/pull/3641)
-  - Co-authored with EF Testing Lead Spencer (`@spencer-tb`)
-  - Mutation testing verification on EELS reference implementation
-  - 6/6 Client passes across Geth, Erigon, Besu, Nethermind, Revm, and Ethrex
+- **Development Updates & Upstream Contributions:**
+  - Upstream PR [ethereum/execution-specs#3641](https://github.com/ethereum/execution-specs/pull/3641): EIP-2537 MSM and Pairing Hardening (co-authored with `@spencer-tb`, verified with mutation testing across 6 L1 clients).
+  - Upstream PR [ethereum/execution-specs#3821](https://github.com/ethereum/execution-specs/pull/3821): EIP-2537 Hash-to-Curve (`MAP_FP_TO_G1` & `MAP_FP2_TO_G2`) boundary deserialization and modulus overflow hardening.
+  - Development Update Report: [development-update-eip2537-hardening.md](./development-update-eip2537-hardening.md) ([HackMD](https://hackmd.io/npFjnHStSaWsJhWNJnyk9A))
 
 ---
 

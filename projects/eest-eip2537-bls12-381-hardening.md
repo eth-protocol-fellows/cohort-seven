@@ -46,7 +46,7 @@ The test suite is structured around three technical pillars:
 |---|---|---|---|
 | M1: Environment & Baseline Pairing Suite | Week 1–2 | Bare-metal Nix Flake environment, local harness with `evm t8n`, first 47 unit test vectors (141 fixtures). | **Completed** |
 | M2: MSM Hardening & Upstream Integration | Week 3–4 | Extended suite with G1MSM/G2MSM padding, subgroup bypass prevention, boundary scalars, total 447 fixtures. Upstream PR [#3641](https://github.com/ethereum/execution-specs/pull/3641) submitted. | **Completed** |
-| M3: Hash-to-Curve Hardening (`MAP_FP`/`MAP_FP2`) | Week 5–6 | Extended suite with MAP_FP_TO_G1 and MAP_FP2_TO_G2 boundary padding, modulus overflow on Fp/Fp2, and unaligned calldata. | **Completed** |
+| M3: Hash-to-Curve Hardening (`MAP_FP`/`MAP_FP2`) | Week 5–6 | Extended suite with MAP_FP_TO_G1 and MAP_FP2_TO_G2 boundary padding, modulus overflow on Fp/Fp2, and unaligned calldata. Upstream PR [#3821](https://github.com/ethereum/execution-specs/pull/3821) submitted. | **Completed** |
 | M4: Multi-Client Conformance & Final Report | Week 7–8 | Cross-client validation across 6 L1 clients (100% pass rate in mutation tests), EPF Final Report and presentation. | In Progress |
 
 ## Possible challenges
