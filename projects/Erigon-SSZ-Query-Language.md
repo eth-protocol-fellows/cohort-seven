@@ -182,6 +182,7 @@ The scope of this project is the SSZ-QL endpoint and proof generation within Eri
 
 ### Mentors
 
+* **Alex Sharov, Erigon** ([@AskAlexSharov](https://github.com/AskAlexSharov))
 * **Tamaghna Choudhuri** ([@RazorClient](https://github.com/RazorClient))
 * **Etan Kissling** ([@etan-status](https://github.com/etan-status))
 

@@ -156,26 +156,65 @@ Key constraints:
    - Peer omits blocks in a period → detected via Merkle proof verification
    - Peer returns unfinalized or malformed data → rejected
 
-### Phase 2: BeaconStateSnapshot & Checkpoint Bootstrap (Yee)
+### Phase 2: Verified State Acquisition & Checkpoint Bootstrap (Yee)
+Build a verified acquisition path from an externally trusted finalized block root to checkpoint state data. Keep verification transport-independent, reuse Lighthouse’s existing infrastructure, and integrate authenticated snapshot summaries with the P2P state-parts downloader.
+#### Phase 2.1 — Light-Client Consumer Core (PR1, implementation completed)
+Implement a transport-independent light-client consumer core:
+- Verify a bootstrap against an externally trusted finalized block root.
+- Validate and process light-client updates, including committee rotation and supported fork transitions.
+- Track checkpoint-eligible finalized headers separately from optimistic or timeout-forced progress.
+- Cover the implementation with unit tests and official light-client sync conformance tests.
+Output: VerifiedFinalizedHeader, exposing an authenticated beacon block root, state root, and slot/fork context.
+#### Phase 2.2 — HTTP Light-Client Consumer (PR2)
+Drive the consumer core using untrusted light-client REST providers:
+- Define LightClientDataSource with fixture and HTTP implementations.
+- Reuse Lighthouse’s HTTP client for bootstrap, updates-by-range, and latest finality updates.
+- Implement bounded requests, retries, cancellation, and explicit invalid/unavailable/no-progress handling.
+- Return a verified finalized header satisfying a locally configured freshness policy.
+- Test the complete HTTP-to-verification path using real cryptography and Lighthouse-generated fixtures.
 
-Implement the `BeaconStateSnapshot` endpoint for state snap sync:
-
+Acceptance:
+```text
+Trusted finalized block root
+  → untrusted HTTP provider
+  → verified bootstrap and processed updates
+  → recent VerifiedFinalizedHeader
 ```
+This phase does not yet change Lighthouse’s production startup flow.
+#### Phase 2.3a — Verified Checkpoint Handoff
+Reuse Lighthouse’s existing checkpoint-sync download and initialization logic, adding a thin adapter from VerifiedFinalizedHeader:
+- Fetch the state and matching block by authenticated roots using the existing HTTP client.
+- Verify their roots against the authenticated header before any state advancement.
+- Pass the verified data to the existing weak_subjectivity_state builder.
+- Add integration tests ensuring mismatched data is rejected before handoff and valid data follows the existing initialization path.
+
+#### Phase 2.3b — Snapshot Summary Verification & Handoff
+
+Implement the proposed snapshot endpoint:
+
+```text
 /eth2/beacon_chain/req/beacon_state_summary/0/
 
-Request:  (block_root: Root)  # LightClientStore.finalized_header
-Response: BeaconStateSnapshot
+Request:  block_root
+Response: BeaconStateSnapshot { summary, state_branch }
 ```
 
-The `BeaconStateSnapshot` contains:
-- `summary: BeaconStateSummary` — a mirror of `BeaconState` where all `List` / `ProgressiveList` fields are summarized as `ListSummary { items_root, num_items }`, preserving the same `hash_tree_root`
-- `state_branch: ProgressiveList[Bytes32]` — Merkle proof for the summary
+- Generate fork-aware summaries that preserve the full state’s `hash_tree_root`, tested against real `BeaconState` fixtures.
+- Verify the returned summary and its branch against the light-client-authenticated header’s `state_root`.
+- Pass the authenticated summary and snapshot root to the P2P state-parts downloader, providing the commitments needed to verify parts and reconstruct the state.
+- Retain the last two summaries and their associated parts data to support downloads across rollover.
 
-This allows a light client to obtain a compact, verifiable summary of the `BeaconState` at the start of a sync period, from which it can then request individual state parts.
+**Deliverable:** a verified snapshot summary usable by the downloader. Coordinate the handoff with the downloader owner; parts scheduling and reconstruction remain separate responsibilities.
 
-The server must keep the last 2 summaries available to avoid rollover during ongoing downloads.
+#### Phase 2.4 — Trusted Checkpoint Configuration & Startup
 
-Also implement the trusted checkpoint bootstrap mechanism: if network metadata contains `trusted_checkpoint.txt` with `0x<block_root>:<epoch>`, light clients start syncing from this root; otherwise, use genesis (if post-Altair) or require `--trusted-block-root`.
+Connect the verified acquisition path to Lighthouse’s existing checkpoint initialization.
+
+- Select the trusted root from `--trusted-block-root`, or bundled `trusted_checkpoint.txt` (`0x<block_root>:<epoch>`). Without either, use a known genesis root only if light-client bootstrap is supported there; otherwise require an explicit root.
+- For the summary/parts route, require the reconstructed state’s root to match the authenticated snapshot root and obtain its matching block.
+- Reuse `weak_subjectivity_state(...)` and the existing startup checks for both the direct-state and reconstructed-state routes.
+
+**Deliverable:** an opt-in startup path from a trusted root to a verified checkpoint, followed by normal Lighthouse synchronization, without changing existing checkpoint-sync behavior.
 
 ### Phase 3: State Snap Sync — BeaconStatePartsByRange (Aarish)
 
