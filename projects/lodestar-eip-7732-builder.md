@@ -16,7 +16,7 @@ Prior EPF cohorts implemented the consensus side of ePBS in Prysm, Nimbus, and L
 
 Lodestar already had much of the Gloas infrastructure when the project started. Types, gossip topics, proposer-preference plumbing, bid validation, bid-pool logic, self-build paths, envelope validation, PTC logic, and builder registry work already existed in Lodestar. The missing piece was the external builder loop itself.
 
-FOCIL / Heze and Deathstar were scoped context rather than parallel deliverables. The FOCIL / Heze adaptation is deferred to after the fellowship since FOCIL is not in the scheduled Glamsterdam set, and the builder-specific adversarial work was dropped in favor of builder work and Glamsterdam devnet testing.
+FOCIL / Heze and Deathstar were scoped context rather than parallel deliverables: the FOCIL / Heze adaptation is deferred to after the fellowship, and the builder-specific adversarial work was dropped in favor of builder work and Glamsterdam devnet testing.
 
 ## Project description
 
@@ -58,9 +58,9 @@ The authoritative description of the architecture, per-slot flow, pricing, invar
 | Area | Role in this project |
 | --- | --- |
 | Core project | Implement the missing Lodestar Builder loop for EIP-7732 / Gloas -- done |
-| First success target | Local bid -> selection -> reveal demo -- done on kurtosis, then on Plataberget and Sepolia |
-| Spec work | beacon-APIs changes needed for an external builder (see [Spec gaps found](#spec-gaps-found)) |
-| Follow-ups | Heze / FOCIL adaptation pass, dedicated building engine support, full metrics, staked builder API, nightly kurtosis e2e test, Lodestar builder in `ethereum-package` |
+| First success target | Local bid -> selection -> reveal demo -- done |
+| Spec work | beacon-APIs changes needed for an external builder (see [Spec improvements](#spec-improvements)) |
+| Follow-ups | Heze / FOCIL adaptation pass, dedicated building engine support, full metrics, staked builder API, Lodestar builder in `ethereum-package` |
 | Dropped | builder-specific Deathstar scenarios |
 
 ## Specification
@@ -75,28 +75,25 @@ The protocol constraints the design is built around:
 - **Parent binding.** A bid for slot S builds on either the head's delivered payload (FULL) or the head's execution parent (EMPTY). Nodes only forward the variant their own view selects, so the builder bids on both.
 - **One bid per `(slot, parentBlockHash, parentBlockRoot, builder)`.** Bids cannot be updated and must exceed the best bid seen by a minimum increment to be forwarded.
 - **Proposer preferences gate bidding.** `bid.feeRecipient` must equal the proposer's fee recipient and `bid.gasLimit` must be compatible with `targetGasLimit`.
-- **Economics.** `bid.value` is paid from the builder's consensus balance as a pending payment, released only if the PTC reaches quorum. The builder must keep `balance - (MIN_DEPOSIT_AMOUNT + pendingWithdrawals) >= value`. Builder revenue is EL tips and MEV sent to the coinbase.
-- **Timing.** Bids for slot S are made during S-1; the proposer selects at slot start; the envelope is due at `PAYLOAD_DUE_BPS` and the PTC votes at `PAYLOAD_ATTESTATION_DUE_BPS`.
+- **Economics.** `bid.value` is paid from the builder's consensus balance as a pending payment, released only if the PTC reaches quorum; builder revenue is EL tips and MEV sent to the coinbase.
 
 How the open design questions from the original proposal were resolved:
 
 | Question | Decision |
 | --- | --- |
-| Where does the builder live? | Standalone `@lodestar/builder` package and `lodestar builder` command, shaped like the validator client. Not a beacon-node service. |
+| Where does the builder live? | Standalone `@lodestar/builder` package and `lodestar builder` command, not a beacon-node service. |
 | Where do payload inputs come from? | The beacon node's `payload_attributes` event (`parentBlockRoot`, `parentBlockHash`, `prevRandao`, `withdrawals`, `timestamp`, `targetGasLimit`), emitted per parent variant. The builder deduplicates by `(slot, parentBlockHash)`. |
-| Where do proposer preferences come from? | The `proposer_preferences` event, plus a fetch of pooled preferences on event-stream connection so a builder that starts mid-epoch can bid on the next slots. |
-| How is `target_gas_limit` passed per payload? | The builder calls `engine_forkchoiceUpdated` with payload attributes directly on each execution client, per build, and `engine_getPayload` at the bid deadline. The beacon node keeps the EL synced; the builder never drives EL sync. |
+| Where do proposer preferences come from? | The `proposer_preferences` event, plus a fetch of pooled preferences on event-stream connection. |
+| How is `target_gas_limit` passed per payload? | The builder calls `engine_forkchoiceUpdated` with payload attributes directly on each execution client, per build, and `engine_getPayload` at the bid deadline. |
 | Which payload source? | Any Engine API execution client, or a dedicated building engine behind the same `PayloadSource` interface; multiple `--execution.urls` are multiple payload sources and the highest-value payload per variant wins. |
 | Bid signing | Added to the builder signer alongside envelope signing. |
 | Bid -> payload cache | `PayloadStore` keyed by `blockHash`, holding payload, execution requests, blobs and proofs, pruned by slot. Never sign a bid for a `blockHash` not in the store. |
 | Reveal timing | Reveal on the `block` event, after `on_block` and the full state transition, not on `block_gossip`. The reveal uses the stateless `publishExecutionPayloadEnvelope` flow, so it works through any beacon node and survives beacon node restarts. |
-| Winning-bid detection | `block` event, then read `body.signedExecutionPayloadBid`; with [beacon-APIs #641](https://github.com/ethereum/beacon-APIs/pull/641) the event itself carries `builder_index` and `block_hash` so no block fetch is needed. |
-| Bid policy | Proportional: `value = clamp(floor(payloadValue * shareBps / 10_000) - fixedCost, minValue, maxValue)`, skipped if above the coverable balance. Competitor-aware pricing was rejected for the baseline. |
+| Winning-bid detection | `block` event; with [beacon-APIs #641](https://github.com/ethereum/beacon-APIs/pull/641) it carries `builder_index` and `block_hash`, so no block fetch is needed. |
+| Bid policy | Proportional: `value = clamp(floor(payloadValue * shareBps / 10_000) - fixedCost, minValue, maxValue)`, skipped if above the coverable balance (`balance - MIN_DEPOSIT_AMOUNT - unsettled won bids`). |
 | Equivocating proposer | Reveal for every distinct block root that commits to the bid; the envelope is bound to the block root. |
 
-Invariants enforced locally by the builder's ledger: never sign a bid for a `blockHash` not in the payload store; never submit the same `(slot, parentBlockHash, parentBlockRoot)` tuple twice; never sign two different envelopes for the same `beaconBlockRoot`; stop bidding when the builder status is `exited` or the balance drops below the operating minimum. `publishExecutionPayloadBid` returning `BID_TOO_HIGH` is the safety net for the coverable-balance estimate.
-
-Beacon node changes made alongside the builder, each useful for any external builder: unconditional and flood-published API bid publishing (gossip validation gates forwarding of peers' bids, not the operator's own builder); event-driven `payload_attributes` emission per parent variant on top of the fixed in-slot tick; `safe_block_hash` and `finalized_block_hash` on the post-Gloas `payload_attributes` event; the committed bid's `builder_index` and `block_hash` on the `block` event.
+Further invariants enforced by the builder's ledger: never submit the same `(slot, parentBlockHash, parentBlockRoot)` tuple twice; never sign two different envelopes for the same `beaconBlockRoot`; stop bidding when the builder status is `exited` or the balance drops below the operating minimum. `publishExecutionPayloadBid` returning `BID_TOO_HIGH` is the safety net for the coverable-balance estimate.
 
 ```mermaid
 flowchart LR
@@ -114,20 +111,20 @@ flowchart LR
     TP --> NEXT
 ```
 
-## Spec gaps found
+## Spec improvements
 
 The exploratory half of the project produced the following beacon-APIs changes. All were needed for a consensus-client-external builder that drives the Engine API itself.
 
-| Change | Why a builder needs it | Status |
-| --- | --- | --- |
-| [#638](https://github.com/ethereum/beacon-APIs/pull/638) `safe_block_hash` / `finalized_block_hash` on the post-Gloas `payload_attributes` event | `engine_forkchoiceUpdated` needs a full `ForkchoiceStateV1`; post-Gloas the justified and finalized execution hashes depend on payload delivery, which is not observable through the beacon API | merged |
-| [#655](https://github.com/ethereum/beacon-APIs/pull/655) `builder_pending_withdrawals` and `builder_pending_payments` state endpoints | Sizing bids against unsettled payments and pending withdrawals | merged |
-| [#659](https://github.com/ethereum/beacon-APIs/pull/659) proposer preferences endpoint | A builder that starts mid-epoch misses preferences gossiped before it subscribed to the event stream | merged |
-| [#641](https://github.com/ethereum/beacon-APIs/pull/641) builder bid identity (`builder_index`, `block_hash`) on the `block` event | Deciding whether to reveal without a block fetch per imported block | merged |
-| [#643](https://github.com/ethereum/beacon-APIs/pull/643) remove `GET /eth/v1/validator/execution_payload_bids/{slot}/{builder_index}` | Dead endpoint under the final bid flow | merged |
-| [#637](https://github.com/ethereum/beacon-APIs/pull/637) clarify `Eth-Builder-Url` response header | Builder API wording | merged |
-| [#628](https://github.com/ethereum/beacon-APIs/pull/628), [#629](https://github.com/ethereum/beacon-APIs/pull/629) `head_v2` emission semantics | Found while implementing `head_v2` in Lodestar and comparing cross-client behavior | merged |
-| [#668](https://github.com/ethereum/beacon-APIs/pull/668) make gossip validation on `POST /eth/v1/beacon/execution_payload_bids` optional | The operator's own builder may bid on a branch the beacon node is not on; the validation rules exist to limit forwarding of peers' bids | open |
+| Change | Why a builder needs it |
+| --- | --- |
+| [#638](https://github.com/ethereum/beacon-APIs/pull/638) `safe_block_hash` / `finalized_block_hash` on the post-Gloas `payload_attributes` event | `engine_forkchoiceUpdated` needs a full `ForkchoiceStateV1`; post-Gloas the justified and finalized execution hashes depend on payload delivery, which is not observable through the beacon API |
+| [#655](https://github.com/ethereum/beacon-APIs/pull/655) `builder_pending_withdrawals` and `builder_pending_payments` state endpoints | Sizing bids against unsettled payments and pending withdrawals |
+| [#659](https://github.com/ethereum/beacon-APIs/pull/659) proposer preferences endpoint | A builder that starts mid-epoch misses preferences gossiped before it subscribed to the event stream |
+| [#641](https://github.com/ethereum/beacon-APIs/pull/641) builder bid identity (`builder_index`, `block_hash`) on the `block` event | Deciding whether to reveal without a block fetch per imported block |
+| [#643](https://github.com/ethereum/beacon-APIs/pull/643) remove `GET /eth/v1/validator/execution_payload_bids/{slot}/{builder_index}` | Dead endpoint under the final bid flow |
+| [#637](https://github.com/ethereum/beacon-APIs/pull/637) clarify `Eth-Builder-Url` response header | Builder API wording |
+| [#628](https://github.com/ethereum/beacon-APIs/pull/628), [#629](https://github.com/ethereum/beacon-APIs/pull/629) `head_v2` emission semantics | Found while implementing `head_v2` in Lodestar and comparing cross-client behavior |
+| [#668](https://github.com/ethereum/beacon-APIs/pull/668) make gossip validation on `POST /eth/v1/beacon/execution_payload_bids` optional | The operator's own builder may bid on a branch the beacon node is not on; the validation rules exist to limit forwarding of peers' bids |
 
 Still unproposed: standard text for post-Gloas `payload_attributes` emission semantics (emit once per distinct `(parent_block_root, parent_block_hash)` as soon as that parent becomes buildable, consumers deduplicate). Lodestar does this today; without it a builder has to synthesize the EMPTY variant itself and cannot synthesize the FULL one at all, since its withdrawals need the beacon state.
 
@@ -138,21 +135,22 @@ flowchart LR
     A["Weeks 5-7<br/>proposal, skeleton, identity, status tracking"] --> B["Weeks 8-12<br/>payload_attributes builds, bids, reveal, kurtosis e2e"]
     B --> C["Weeks 13-16<br/>dual-variant bidding, ledger, metrics, beacon-APIs PRs, Plataberget + Sepolia"]
     C --> D["Weeks 17-18<br/>port to unstable, final report, presentation"]
-    D --> E["Post-EPF<br/>FOCIL adaptation, building engine support, full metrics, staked builder API, e2e test, builder in ethereum-package"]
+    D --> E["Post-EPF<br/>FOCIL adaptation, building engine support, full metrics, staked builder API, builder in ethereum-package"]
 ```
 
 **Done.**
 
 - Builder skeleton: identity resolution, readiness gating, signer, `BuilderStatusTracker` with epoch-clock polling, CLI and metrics wiring.
-- Phase 1: `payload_attributes` driven builds against local execution clients, fixed-share bid policy, reveal via stateless envelope publish, unconditional API bid publishing in the beacon node.
+- Phase 1: `payload_attributes` driven builds against local execution clients, fixed-share bid policy, reveal via stateless envelope publish, unconditional flood-published API bid publishing in the beacon node.
 - Phase 2: remaining beacon node follow-ups (event-driven per-variant attributes, forkchoice hashes on the event, bid identity on the `block` event), dual-variant bidding, ledger, metrics, multiple ELs with max-value selection.
 - Verified end to end on a two-node kurtosis devnet, then run on the Plataberget devnet and on Sepolia, where the builder is bidding, winning slots and revealing payloads.
-- beacon-APIs changes listed under [Spec gaps found](#spec-gaps-found).
+- beacon-APIs changes listed under [Spec improvements](#spec-improvements).
+- Nightly kurtosis e2e test on `unstable` running the Lodestar builder, validator and beacon node and asserting bids, wins and reveals.
 - Upstreaming: the builder is being ported to `unstable` in a minimal wiring PR ([ChainSafe/lodestar#10379](https://github.com/ChainSafe/lodestar/pull/10379)), with proposer preference retrieval on event-stream connection ([#10290](https://github.com/ChainSafe/lodestar/pull/10290)), forkchoice hashes on the `payload_attributes` event ([#10109](https://github.com/ChainSafe/lodestar/pull/10109)) and optional validation on API bid publishing ([#10429](https://github.com/ChainSafe/lodestar/pull/10429)) on the beacon node side.
 
 **Remaining (weeks 17-18).** Land the wiring PR, finish the final EPF report, and present the project on November 4th.
 
-**Follow-ups after EPF.** The Heze / FOCIL adaptation pass; building payloads on a dedicated building engine next to vanilla execution clients; full metrics and the staked builder API as separate PRs on top of the wiring PR; a nightly kurtosis e2e test running the Lodestar builder, validator and beacon node and asserting bids, wins and reveals; getting the Lodestar builder into `ethereum-package`; the parent-of-head variant for proposer-boost reorg slots and reveal redundancy across beacon nodes.
+**Follow-ups after EPF.** The Heze / FOCIL adaptation pass; building payloads on a dedicated building engine next to vanilla execution clients; full metrics and the staked builder API as separate PRs on top of the wiring PR; getting the Lodestar builder into `ethereum-package`; the parent-of-head variant for proposer-boost reorg slots and reveal redundancy across beacon nodes.
 
 ## Possible challenges
 
@@ -164,7 +162,7 @@ flowchart LR
 
 **Payload cache correctness.** The exact bid -> payload mapping must survive to reveal; misses and mismatches fail closed. Recent envelope-cache and idempotency PRs show this path has real resource and correctness edge cases.
 
-**Timing and PTC visibility.** The reveal must beat the payload deadline for the PTC -- and, since [consensus-specs #5210](https://github.com/ethereum/consensus-specs/pull/5210), a late payload is forcibly reorged by the next proposer. Local success did not imply devnet success under real propagation; the per-variant `payload_attributes` emission exists to recover build time lost to the fixed in-slot tick.
+**Timing and PTC visibility.** The reveal must beat the payload deadline for the PTC -- and, since [consensus-specs #5210](https://github.com/ethereum/consensus-specs/pull/5210), a late payload is forcibly reorged by the next proposer. Local success did not imply devnet success under real propagation.
 
 **Bid policy.** The proportional policy is enough for the honest path. A stronger builder eventually needs canonical-inclusion risk, free-option incentives, and better payload-value estimates -- an unbounded research surface that stays behind the `BidPolicy` interface and outside the fellowship.
 
@@ -180,10 +178,10 @@ The project is successful if Lodestar has a working, tested, and documented hone
 
 **Strong success (done unless noted):**
 
-- Reproducible end-to-end demo with real local execution clients on a kurtosis devnet, plus runs on the Plataberget devnet and Sepolia.
+- Reproducible end-to-end demo with real local execution clients.
 - Configurable bid policy plus bid/win/reveal/timing logs and metrics.
 - Dual-variant payload preparation: bid on both the FULL and the EMPTY parent, with builds started as soon as each variant becomes buildable ([see more](https://github.com/eth-protocol-fellows/cohort-seven/pull/161#discussion_r3574786863)).
-- Beacon-APIs changes merged ([Spec gaps found](#spec-gaps-found)); Lodestar builder PRs merged and in review.
+- Beacon-APIs changes merged ([Spec improvements](#spec-improvements)); Lodestar builder PRs merged and in review.
 - Final write-up of what existed, what was added, and what remains.
 - Server-side of the builder API and serving trustless bids via API -- follow-up, blocked by the [staked builder API](https://github.com/ChainSafe/lodestar/pull/9832) landing.
 - Heze / FOCIL adaptation pass -- deferred: FOCIL is not in the Glamsterdam set, planned post-fellowship.
@@ -191,7 +189,7 @@ The project is successful if Lodestar has a working, tested, and documented hone
 **Stretch success:**
 
 - Improved bid policy beyond a fixed constant -- done (proportional policy with cost, bounds and balance coverage).
-- Run a kurtosis devnet with the Lodestar builder alongside buildoor and win slots -- done; "consistently out-bid buildoor" was dropped as a goal, since the always-broadcast design deliberately ignores competing bids.
+- Run a kurtosis devnet with the Lodestar builder alongside buildoor and win slots -- done; "consistently out-bid buildoor" was dropped as a goal since the design ignores competing bids.
 - Deeper write-up of builder bidding constraints under ePBS -- done, as the pricing, invariants and open-questions notes that ship with the builder package.
 - ~~Builder-adversarial Deathstar matrix~~ -- not pursued.
 - ~~Envelope withholding research~~ -- not pursued for now; withholding a payload on a future canonical block loses the bid value, and the honest-path builder has no unbundling risk to protect against.
@@ -207,7 +205,7 @@ The project is successful if Lodestar has a working, tested, and documented hone
 
 ### Mentors
 
-- [Nico Flaig](https://github.com/nflaig) -- Lodestar (ChainSafe); co-author of EIP-7732(ePBS); listed mentor for both the Builder and Deathstar project ideas.
+- [Nico Flaig](https://github.com/nflaig) -- Lodestar (ChainSafe); co-author of EIP-7732(ePBS).
 
 ## Resources
 
