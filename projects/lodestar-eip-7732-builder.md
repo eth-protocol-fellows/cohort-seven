@@ -142,7 +142,7 @@ flowchart LR
 - Phase 1: `payload_attributes` driven builds against local execution clients, fixed-share bid policy, reveal via stateless envelope publish, unconditional flood-published API bid publishing in the beacon node.
 - Phase 2: remaining beacon node follow-ups (event-driven per-variant attributes, forkchoice hashes on the event, bid identity on the `block` event), dual-variant bidding, ledger, metrics, multiple ELs with max-value selection.
 - Verified end to end on a two-node kurtosis devnet, then run on the Plataberget devnet and on Sepolia, where the builder is bidding, winning slots and revealing payloads.
-- beacon-APIs changes listed under [Spec improvements](#spec-improvements).
+- beacon-APIs changes listed under [Spec Improvements](#spec-improvements).
 - Nightly kurtosis e2e test on `unstable` running the Lodestar builder, validator and beacon node and asserting bids, wins and reveals.
 - Upstreaming: the builder is being ported to `unstable` in a minimal wiring PR ([ChainSafe/lodestar#10379](https://github.com/ChainSafe/lodestar/pull/10379)), with proposer preference retrieval on event-stream connection ([#10290](https://github.com/ChainSafe/lodestar/pull/10290)), forkchoice hashes on the `payload_attributes` event ([#10109](https://github.com/ChainSafe/lodestar/pull/10109)) and optional validation on API bid publishing ([#10429](https://github.com/ChainSafe/lodestar/pull/10429)) on the beacon node side.
 
@@ -179,7 +179,7 @@ The project is successful if Lodestar has a working, tested, and documented hone
 - Reproducible end-to-end demo with real local execution clients.
 - Configurable bid policy plus bid/win/reveal/timing logs and metrics.
 - Dual-variant payload preparation: bid on both the FULL and the EMPTY parent, with builds started as soon as each variant becomes buildable ([see more](https://github.com/eth-protocol-fellows/cohort-seven/pull/161#discussion_r3574786863)).
-- Beacon-APIs changes merged ([Spec improvements](#spec-improvements)); Lodestar builder PRs merged and in review.
+- Beacon-APIs changes merged ([Spec Improvements](#spec-improvements)); Lodestar builder PRs merged and in review.
 - Final write-up of what existed, what was added, and what remains.
 - Server-side of the builder API and serving trustless bids via API -- follow-up, blocked by the [staked builder API](https://github.com/ChainSafe/lodestar/pull/9832) landing.
 - Heze / FOCIL adaptation pass -- deferred: FOCIL is not in the Glamsterdam set, planned post-fellowship.
@@ -203,7 +203,7 @@ The project is successful if Lodestar has a working, tested, and documented hone
 
 ### Mentors
 
-- [Nico Flaig](https://github.com/nflaig) -- Lodestar (ChainSafe); co-author of EIP-7732(ePBS).
+- [Nico Flaig](https://github.com/nflaig) -- Lodestar (ChainSafe); co-author of EIP-7732 (ePBS).
 
 ## Resources
 
