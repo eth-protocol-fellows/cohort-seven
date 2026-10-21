@@ -59,7 +59,7 @@ The authoritative description of the architecture, per-slot flow, pricing, invar
 | --- | --- |
 | Core project | Implement the missing Lodestar Builder loop for EIP-7732 / Gloas -- done |
 | First success target | Local bid -> selection -> reveal demo -- done |
-| Spec work | beacon-APIs changes needed for an external builder (see [Spec improvements](#spec-improvements)) |
+| Spec work | beacon-APIs changes needed for an external builder (see [Spec Improvements](#spec-improvements)) |
 | Follow-ups | Heze / FOCIL adaptation pass, dedicated building engine support, full metrics, staked builder API, Lodestar builder in `ethereum-package` |
 | Dropped | builder-specific Deathstar scenarios |
 
@@ -111,7 +111,7 @@ flowchart LR
     TP --> NEXT
 ```
 
-## Spec improvements
+## Spec Improvements
 
 The exploratory half of the project produced the following beacon-APIs changes. All were needed for a consensus-client-external builder that drives the Engine API itself.
 
@@ -125,8 +125,6 @@ The exploratory half of the project produced the following beacon-APIs changes. 
 | [#637](https://github.com/ethereum/beacon-APIs/pull/637) clarify `Eth-Builder-Url` response header | Builder API wording |
 | [#628](https://github.com/ethereum/beacon-APIs/pull/628), [#629](https://github.com/ethereum/beacon-APIs/pull/629) `head_v2` emission semantics | Found while implementing `head_v2` in Lodestar and comparing cross-client behavior |
 | [#668](https://github.com/ethereum/beacon-APIs/pull/668) make gossip validation on `POST /eth/v1/beacon/execution_payload_bids` optional | The operator's own builder may bid on a branch the beacon node is not on; the validation rules exist to limit forwarding of peers' bids |
-
-Still unproposed: standard text for post-Gloas `payload_attributes` emission semantics (emit once per distinct `(parent_block_root, parent_block_hash)` as soon as that parent becomes buildable, consumers deduplicate). Lodestar does this today; without it a builder has to synthesize the EMPTY variant itself and cannot synthesize the FULL one at all, since its withdrawals need the beacon state.
 
 ## Roadmap
 
