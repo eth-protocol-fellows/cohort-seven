@@ -2,6 +2,8 @@
 
 Embed Reth directly into the Ream binary, as a library so that the full CL+EL combination can be driven within one process, avoiding HTTP bridge that introduces inefficiencies such as bad UX and JSON encode-decode in communication.
 
+**Status:** merged into Ream in [ream#1472](https://github.com/ReamLabs/ream/pull/1472) (Sep 13, 2026), behind the `reth` cargo feature.
+
 ## Motivation
 
 The engine API communication between CL and EL involves a lot of steps. It is mostly fine, apart from the JSON encode-decode that costs a considerable CPU time (up to 1s in some situations), eating into slot time budget. 
@@ -78,7 +80,7 @@ To start with disable Type-3 transactions, until PeerDAS is supported in Ream. A
 
 ### Lean
 
-Currently the LeanSpecs's `BlockBody` just contains `attestations`, no execution block details yet. We will add `ExecutionPayloadV4` in the lean block body. 
+Currently the LeanSpecs's `BlockBody` just contains `attestations`, no execution block details yet. `ExecutionPayload` (Electra) is added in the lean block body. 
 
 These methods in the lean chain service needs to handle this:
 - `handle_produce_block`: produces a Lean block, needs to first call `engine_getPayload` to secure an EL payload to include in the Lean block body.
@@ -101,7 +103,7 @@ Handle the `on_block` to verify the EL payload and call fork choice updated.
 - [High Level Plan](https://hackmd.io/Z3km32ovRAiAdS6X9yzsKw).
 - [Tracking Issue](https://github.com/ReamLabs/ream/issues/1470).
 - Prototype draft PR ([ream#1472](https://github.com/ReamLabs/ream/pull/1472)).
-- Scaffold a `ream-reth` crate inside the `ream` workspace for utils.
+- Scaffold a `ream-reth-engine` crate inside the `ream` workspace for utils.
 - Use `NodeBuilder` to bootstrap a Reth instance and integrate in binary.
 - Pass the reth handle to the lean chain service.
 - Integrate into methods like `handle_produce_block` and `on_block` to call the reth engine API.
@@ -110,25 +112,30 @@ Handle the `on_block` to verify the EL payload and call fork choice updated.
 
 - Harden the prototype with testing and running local devnets.
 - Have the initial prototype reviewed.
+- Status: done, [ream#1472](https://github.com/ReamLabs/ream/pull/1472) merged.
 
 ### Week 9-10: Devnet + wallet demo
 
 - Local devnet that produces blocks with transactions.
 - Wallet -> mempool -> block -> tx finalised flow for type-2 tx.
+- Status: done. Needed reth devp2p between nodes (`--reth-p2p-port`, `--reth-trusted-peers`), otherwise only the node receiving a tx included it.
 
 ### Week 11-12: Benchmarking
 
 - Benchmark report: Response times, CPU, Memory usage for CL-EL communication, validator duties with and without EL integration.
+- Status: done on a 3-node devnet, empty to 200M gas payloads. Embedding saves 35.7 ms per 200M gas block over HTTP. Most engine API cost is the hex codec in `ethereum_serde_utils`, swapping it alone cuts CL-side JSON from 59.1 ms to 6.5 ms.
 
 ### Week 13-16: Interop + Stress
 
 - Interop with EthLambda and other lean clients integrating EL. 
 - Stress testing with various topologies and payload types (small, maximized gas, maximized byte size).
+- Status: payload size sweep done as part of benchmarking. Interop with EthLambda not done.
 
 ### Week 17+: Stretch goals
 
 - Blobs/PeerDAS integration to support type-3 transactions on the EL layer.
 - Writeup blog post to share the findings from this effort.
+- Status: blobs dropped, as blob sidecars use BLS signatures and KZG is not PQ, so they do not represent the lean chain.
 
 ## Possible challenges
 
