@@ -44,7 +44,7 @@ sequenceDiagram
     P->>P2P: Beacon block selects bid
     BN-->>B: block event (after import)
     B->>B: Match selected bid against payload store
-    B->>BN: publishExecutionPayloadEnvelope (+ blobs, proofs)
+    B->>BN: publishExecutionPayloadEnvelope (+ blobs, proofs) (reveal)
     BN->>P2P: SignedExecutionPayloadEnvelope + data columns
     PTC->>P2P: PayloadAttestationMessage
 ```
