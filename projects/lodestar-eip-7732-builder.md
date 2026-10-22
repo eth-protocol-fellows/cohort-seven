@@ -60,7 +60,7 @@ The authoritative description of the architecture, per-slot flow, pricing, invar
 | Core project | Implement the missing Lodestar Builder loop for EIP-7732 / Gloas (done) |
 | First success target | Local bid -> selection -> reveal demo (done on Kurtosis, Plataberget & Sepolia) |
 | Spec work | beacon-APIs changes needed for an external builder (see [Spec Improvements](#spec-improvements)) |
-| Follow-ups | Heze / FOCIL adaptation pass, dedicated building engine support, full metrics, staked builder API, Lodestar builder in `ethereum-package` (todo) |
+| Follow-ups | Heze / FOCIL adaptation pass, dedicated building engine support, full metrics, staked builder API, Lodestar builder in `ethereum-package` |
 | Dropped | builder-specific Deathstar scenarios |
 
 ## Specification
@@ -75,7 +75,7 @@ The protocol constraints the design is built around:
 - **Parent binding.** A bid for slot S builds on either the head's delivered payload (FULL) or the head's execution parent (EMPTY). Nodes only forward the variant their own view selects, so the builder bids on both.
 - **One bid per `(slot, parentBlockHash, parentBlockRoot, builder)`.** Bids cannot be updated and must exceed the best bid seen by a minimum increment to be forwarded.
 - **Proposer preferences gate bidding.** `bid.feeRecipient` must equal the proposer's fee recipient and `bid.gasLimit` must be compatible with `targetGasLimit`.
-- **Economics.** `bid.value` is paid from the builder's consensus balance as a pending payment, released only if the PTC reaches quorum; builder revenue is EL tips and MEV sent to the coinbase.
+- **Economics.** `bid.value` is paid from the builder’s consensus balance as a pending payment, released at epoch end only if the block that included the bid gathers enough attestation weight; builder revenue is EL tips and MEV sent to the coinbase.
 
 How the open design questions from the original proposal were resolved:
 
@@ -144,11 +144,11 @@ flowchart LR
 - Verified end to end on a two-node kurtosis devnet, then run on the Plataberget devnet and on Sepolia, where the builder is bidding, winning slots and revealing payloads.
 - beacon-APIs changes listed under [Spec Improvements](#spec-improvements).
 - Nightly kurtosis e2e test on `unstable` running the Lodestar builder, validator and beacon node and asserting bids, wins and reveals.
-- UThe builder is present on `unstable` with a minimal wiring ([ChainSafe/lodestar#10379](https://github.com/ChainSafe/lodestar/pull/10379)), with proposer preference retrieval on event-stream connection ([#10290](https://github.com/ChainSafe/lodestar/pull/10290)), forkchoice hashes on the `payload_attributes` event ([#10243](https://github.com/ChainSafe/lodestar/pull/10243)) and optional validation on API bid publishing ([#10429](https://github.com/ChainSafe/lodestar/pull/10429)) on the beacon node side.
+- The builder is present on `unstable` with a minimal wiring ([ChainSafe/lodestar#10379](https://github.com/ChainSafe/lodestar/pull/10379)), with proposer preference retrieval on event-stream connection ([#10290](https://github.com/ChainSafe/lodestar/pull/10290)), forkchoice hashes on the `payload_attributes` event ([#10243](https://github.com/ChainSafe/lodestar/pull/10243)) and optional validation on API bid publishing ([#10429](https://github.com/ChainSafe/lodestar/pull/10429)) on the beacon node side.
 
 **Finalization (weeks 17-18).** Finish the final EPF reports, and present the project on November 4th.
 
-**Follow-ups after EPF.** The Heze / FOCIL adaptation pass; building payloads on a dedicated building engine next to execution clients (in progress, lead by Nico); full metrics and the staked builder API as separate PRs on top of the wiring PR; getting the Lodestar builder into `ethereum-package`; the parent-of-head variant for proposer-boost reorg slots and reveal redundancy across beacon nodes.
+**Follow-ups after EPF.** The Heze / FOCIL adaptation pass; building payloads on a dedicated building engine next to execution clients (in progress, led by Nico); full metrics and the staked builder API as separate PRs on top of the wiring PR; getting the Lodestar builder into `ethereum-package`; the parent-of-head variant for proposer-boost reorg slots and reveal redundancy across beacon nodes.
 
 ## Possible challenges
 
@@ -193,7 +193,7 @@ The project is successful if Lodestar has a working, tested, and documented hone
 - Dual-variant payload preparation: bid on both the FULL and the EMPTY parent, with builds started as soon as each variant becomes buildable ([see more](https://github.com/eth-protocol-fellows/cohort-seven/pull/161#discussion_r3574786863)).
 - Beacon-APIs changes merged ([Spec Improvements](#spec-improvements)); Lodestar builder PRs merged and in review.
 - Final write-up of what existed, what was added, and what remains.
-- Server-side of the builder API and serving trustless bids via API -- follow-up, blocked by the [staked builder API](https://github.com/ChainSafe/lodestar/pull/9832) landing.
+- Server-side of the builder API and serving trustless bids via API -- follow-up.
 - Heze / FOCIL adaptation pass -- deferred: FOCIL is not in the Glamsterdam set, planned post-fellowship.
 
 **Stretch success:**
@@ -202,7 +202,13 @@ The project is successful if Lodestar has a working, tested, and documented hone
 - Run a kurtosis devnet with the Lodestar builder alongside buildoor and win slots -- done; "consistently out-bid buildoor" was dropped as a goal since the design ignores competing bids.
 - Deeper write-up of builder bidding constraints under ePBS -- done, as the pricing, invariants and open-questions notes that ship with the builder package.
 - ~~Builder-adversarial Deathstar matrix~~ -- not pursued.
-- ~~Envelope withholding research~~ -- not pursued for now; withholding a payload on a future canonical block loses the bid value, and the honest-path builder has no unbundling risk to protect against.
+- ~~Envelope withholding research~~ -- not pursued for now.
+
+## Running Proof
+
+- Builder page on Sepolia: https://light-sepolia.beaconcha.in/builder/0 (actively bidding at the time of this proposal update)
+- Example of a slot where our builder won: https://light-sepolia.beaconcha.in/slot/11335049 (see `Block Extra Data`)
+- Code: https://github.com/ChainSafe/lodestar/tree/unstable/packages/builder
 
 ## Collaborators
 
@@ -217,6 +223,10 @@ The project is successful if Lodestar has a working, tested, and documented hone
 
 - [Nico Flaig](https://github.com/nflaig) -- Lodestar (ChainSafe); co-author of EIP-7732 (ePBS).
 
+### Helpers
+
+- [Lodekeeper](https://github.com/lodekeeper) -- Lodestar's main AI helper.
+
 ## Resources
 
 - **[Builder design document](https://github.com/ChainSafe/lodestar/blob/99fd8fa9ad3a867fced3a5907a68edf3a519c1cd/packages/builder/DESIGN.md)** -- architecture, slot timeline, per-slot flow, pricing, invariants, beacon node follow-ups, open questions, and proposed beacon-APIs changes
@@ -225,5 +235,5 @@ The project is successful if Lodestar has a working, tested, and documented hone
 - [EIP-7732](https://eips.ethereum.org/EIPS/eip-7732) - Gloas [builder](https://github.com/ethereum/consensus-specs/blob/d9663f85be248c4fd0ae95806da6070e17c2442b/specs/gloas/builder.md) and [p2p](https://github.com/ethereum/consensus-specs/blob/d9663f85be248c4fd0ae95806da6070e17c2442b/specs/gloas/p2p-interface.md) specs - [EIP-7773 (Glamsterdam meta)](https://eips.ethereum.org/EIPS/eip-7773) - [EIP-8282 (builder deposits/exits)](https://eips.ethereum.org/EIPS/eip-8282)
 - EPF7 project ideas: [Builder](https://github.com/eth-protocol-fellows/cohort-seven/blob/main/projects/project-ideas.md#lodestar-eip-7732-builder) - [Deathstar](https://github.com/eth-protocol-fellows/cohort-seven/blob/main/projects/project-ideas.md#lodestar-adversarial-node)
 - [Lodestar](https://github.com/ChainSafe/lodestar) - [`@lodestar/builder`](https://github.com/ChainSafe/lodestar/tree/99fd8fa9ad3a867fced3a5907a68edf3a519c1cd/packages/builder) - wiring PR [#10379](https://github.com/ChainSafe/lodestar/pull/10379) - [Deathstar chaos catalog](https://github.com/ChainSafe/lodestar/blob/2e06376dcd7a804bb824a2262809bfcfabdda645/EPBS_CHAOS_FEATURES.md)
-- [buildoor](https://github.com/ethpandaops/buildoor) - [ethereum-package](https://github.com/ethpandaops/ethereum-package) - [glamsterdam-devnet-6](https://dora.glamsterdam-devnet-6.ethpandaops.io/)
+- [buildoor](https://github.com/ethpandaops/buildoor) - [ethereum-package](https://github.com/ethpandaops/ethereum-package)
 - [Why enshrine PBS?](https://ethresear.ch/t/why-enshrine-proposer-builder-separation-a-viable-path-to-epbs/15710) - [PTC: an ePBS design](https://ethresear.ch/t/payload-timeliness-committee-ptc-an-epbs-design/16054) - [The Free Option Problem in ePBS](https://collective.flashbots.net/t/the-free-option-problem-in-epbs/5115) - [Who Wins Ethereum Block Building Auctions and Why?](https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.AFT.2024.22) - [Block vs. Slot Auction PBS](https://mirror.xyz/julianma.eth/CPYI91s98cp9zKFkanKs_qotYzw09kWvouaAa9GXBrQ) (Julian Ma)
