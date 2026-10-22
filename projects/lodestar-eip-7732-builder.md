@@ -51,7 +51,7 @@ sequenceDiagram
 
 The baseline bid policy is a proportional share of the payload value minus a fixed cost, bounded by configured minimum and maximum values and by the balance the builder can actually cover. The builder always broadcasts: bids cost nothing unless they win, bidding is one-shot, and the local view of competing bids is partial and late, so competing bids are never a decision input. `BidPolicy` is an interface, so other strategies (including competitor-aware ones) can be plugged in without changing the builder loop.
 
-The authoritative description of the architecture, per-slot flow, pricing, invariants, and open questions is present in the design document, [here](https://github.com/ChainSafe/lodestar/blob/99fd8fa9ad3a867fced3a5907a68edf3a519c1cd/packages/builder/DESIGN.md). A companion [living technical note](https://hackmd.io/@krisos/S1a9mdB7fl) tracks the earlier code-path maps and PR state.
+The authoritative description of the architecture, per-slot flow, pricing, invariants, and open questions is present in the [design document](https://github.com/ChainSafe/lodestar/blob/99fd8fa9ad3a867fced3a5907a68edf3a519c1cd/packages/builder/DESIGN.md). A companion [living technical note](https://hackmd.io/@krisos/S1a9mdB7fl) tracks the earlier code-path maps and PR state.
 
 **Scope summary**
 
