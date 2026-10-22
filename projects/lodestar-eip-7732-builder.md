@@ -57,10 +57,10 @@ The authoritative description of the architecture, per-slot flow, pricing, invar
 
 | Area | Role in this project |
 | --- | --- |
-| Core project | Implement the missing Lodestar Builder loop for EIP-7732 / Gloas -- done |
-| First success target | Local bid -> selection -> reveal demo -- done |
+| Core project | Implement the missing Lodestar Builder loop for EIP-7732 / Gloas (done) |
+| First success target | Local bid -> selection -> reveal demo (done on Kurtosis, Plataberget & Sepolia) |
 | Spec work | beacon-APIs changes needed for an external builder (see [Spec Improvements](#spec-improvements)) |
-| Follow-ups | Heze / FOCIL adaptation pass, dedicated building engine support, full metrics, staked builder API, Lodestar builder in `ethereum-package` |
+| Follow-ups | Heze / FOCIL adaptation pass, dedicated building engine support, full metrics, staked builder API, Lodestar builder in `ethereum-package` (todo) |
 | Dropped | builder-specific Deathstar scenarios |
 
 ## Specification
