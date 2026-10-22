@@ -144,25 +144,37 @@ flowchart LR
 - Verified end to end on a two-node kurtosis devnet, then run on the Plataberget devnet and on Sepolia, where the builder is bidding, winning slots and revealing payloads.
 - beacon-APIs changes listed under [Spec Improvements](#spec-improvements).
 - Nightly kurtosis e2e test on `unstable` running the Lodestar builder, validator and beacon node and asserting bids, wins and reveals.
-- Upstreaming: the builder is being ported to `unstable` in a minimal wiring PR ([ChainSafe/lodestar#10379](https://github.com/ChainSafe/lodestar/pull/10379)), with proposer preference retrieval on event-stream connection ([#10290](https://github.com/ChainSafe/lodestar/pull/10290)), forkchoice hashes on the `payload_attributes` event ([#10109](https://github.com/ChainSafe/lodestar/pull/10109)) and optional validation on API bid publishing ([#10429](https://github.com/ChainSafe/lodestar/pull/10429)) on the beacon node side.
+- UThe builder is present on `unstable` with a minimal wiring ([ChainSafe/lodestar#10379](https://github.com/ChainSafe/lodestar/pull/10379)), with proposer preference retrieval on event-stream connection ([#10290](https://github.com/ChainSafe/lodestar/pull/10290)), forkchoice hashes on the `payload_attributes` event ([#10243](https://github.com/ChainSafe/lodestar/pull/10243)) and optional validation on API bid publishing ([#10429](https://github.com/ChainSafe/lodestar/pull/10429)) on the beacon node side.
 
-**Remaining (weeks 17-18).** Land the wiring PR, finish the final EPF report, and present the project on November 4th.
+**Finalization (weeks 17-18).** Finish the final EPF reports, and present the project on November 4th.
 
-**Follow-ups after EPF.** The Heze / FOCIL adaptation pass; building payloads on a dedicated building engine next to vanilla execution clients; full metrics and the staked builder API as separate PRs on top of the wiring PR; getting the Lodestar builder into `ethereum-package`; the parent-of-head variant for proposer-boost reorg slots and reveal redundancy across beacon nodes.
+**Follow-ups after EPF.** The Heze / FOCIL adaptation pass; building payloads on a dedicated building engine next to execution clients (in progress, lead by Nico); full metrics and the staked builder API as separate PRs on top of the wiring PR; getting the Lodestar builder into `ethereum-package`; the parent-of-head variant for proposer-boost reorg slots and reveal redundancy across beacon nodes.
 
 ## Possible challenges
 
-**Evolving EIP-7732 / Gloas specs.** Gloas is still draft, and builder-adjacent containers, deadlines, signing roots, and API surfaces moved during the cohort (most visibly the SSZ engine work in Lodestar, which invalidated an earlier round of builder PRs). Bid construction, signing, cache keys, and reveal logic are kept modular enough to follow those changes.
+**Evolving EIP-7732 / Gloas specs.** Gloas is still draft, and builder-adjacent containers, deadlines, signing roots, and API surfaces may move during the cohort. The builder should keep bid construction, signing, cache keys, and reveal logic modular enough to follow those changes.
 
-**Builder service boundary.** Resolved: a standalone client that speaks the Engine API directly. The remaining cost is a second `forkchoiceUpdated` writer on the execution client next to the beacon node, which needs per-EL verification, and EMPTY-variant builds moving the EL head back one payload until the next `forkchoiceUpdated`.
+> *Outcome:* They did move, most visibly the SSZ engine work in Lodestar, which invalidated an earlier round of builder PRs and led to the builder being ported to `unstable` in a single minimal wiring PR.
 
-**Builder identity, registration, and balance.** Builders onboard through dedicated EIP-8282 deposit/exit request contracts (deposits carry inline-verified proofs of possession; exits are authorized by the builder's execution address), need active status and excess balance covering bids plus pending payments. Registration must be reproducible on a devnet (`builder_count` in `ethereum-package` only funds the key; the EIP-8282 deposit still has to be made), and deposit-signature verification is a known performance surface ([Lodestar #9436](https://github.com/ChainSafe/lodestar/pull/9436)).
+**Builder service boundary.** The cleanest home for `lodestar builder` is not obvious; the first prototype may need to live near existing beacon-node or validator-client services to reuse code.
+
+> *Outcome:* Resolved as a standalone client (see the decisions table above); the residual cost is a second `forkchoiceUpdated` writer on the execution client next to the beacon node, and EMPTY-variant builds moving the EL head back one payload until the next `forkchoiceUpdated`.
+
+**Builder identity, registration, and balance.** Builders onboard through dedicated EIP-8282 deposit/exit request contracts (deposits carry inline-verified proofs of possession; exits are authorized by the builder's execution address), need active status and excess balance covering bids plus pending payments. Registration must be reproducible on a devnet, and deposit-signature verification is a known performance surface ([Lodestar #9436](https://github.com/ChainSafe/lodestar/pull/9436)).
+
+> *Outcome:* Reproducible on kurtosis once we learned that `builder_count` in `ethereum-package` only funds the key and the EIP-8282 deposit still has to be made; balance tracking became `BuilderStatusTracker` plus the [#655](https://github.com/ethereum/beacon-APIs/pull/655) pending-payment endpoints.
 
 **Payload cache correctness.** The exact bid -> payload mapping must survive to reveal; misses and mismatches fail closed. Recent envelope-cache and idempotency PRs show this path has real resource and correctness edge cases.
 
-**Timing and PTC visibility.** The reveal must beat the payload deadline for the PTC -- and, since [consensus-specs #5210](https://github.com/ethereum/consensus-specs/pull/5210), a late payload is forcibly reorged by the next proposer. Local success did not imply devnet success under real propagation.
+> *Outcome:* `PayloadStore` keyed by `blockHash`; a bid is never signed for a `blockHash` that is not in the store, so a won bid can always be revealed. No mismatch has been observed on devnets or Sepolia.
 
-**Bid policy.** The proportional policy is enough for the honest path. A stronger builder eventually needs canonical-inclusion risk, free-option incentives, and better payload-value estimates -- an unbounded research surface that stays behind the `BidPolicy` interface and outside the fellowship.
+**Timing and PTC visibility.** The reveal must beat the payload deadline for the PTC -- and, since [consensus-specs #5210](https://github.com/ethereum/consensus-specs/pull/5210), a late payload is forcibly reorged by the next proposer. Local success may not imply devnet success under real propagation.
+
+> *Outcome:* The real squeeze was build time, not reveal time -- solved by event-driven per-variant `payload_attributes` emission in the beacon node.
+
+**Bid policy.** Fixed-value is enough for the honest path, but a stronger builder eventually needs payload value, competing bids, balance constraints, canonical-inclusion risk, and free-option incentives -- an unbounded research surface kept behind the extension gate.
+
+> *Outcome:* Shipped behind the `BidPolicy` interface; competing bids deliberately excluded from the baseline.
 
 ## Goal of the project
 
