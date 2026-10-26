@@ -196,7 +196,7 @@ The final weeks of the cohort should mark the finalization of your project. Subm
 | [Jeff](https://www.github.com/jeffoodchain) | | |
 | [Kimi](https://github.com/KimiWu123) | | |
 | [Kris](https://github.com/krisoshea-eth/) | | |
-| [Marko](https://github.com/markolazic01) | | |
+| [Marko](https://github.com/markolazic01) | [Final Update](https://hackmd.io/@lqzic/epf-7-final-update) | |
 | [Mary](https://github.com/maryodior) | | |
 | [Mohit](https://github.com/groverInnovate) | | |
 | [Parth](https://github.com/ParthSinghPS) | | |
