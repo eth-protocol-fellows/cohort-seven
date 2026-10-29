@@ -209,7 +209,7 @@ The final weeks of the cohort should mark the finalization of your project. Subm
 | [Sameer](https://github.com/SamAg19) | | |
 | [Skas](https://www.github.com/Skanislav) | | |
 | [Soham](https://github.com/zemse) | | |
-| [Steven](https://github.com/stevemilk) | | |
+| [Steven](https://github.com/stevemilk) |[Final report: snapshot-layer components for Erigon's federated history network](https://hackmd.io/@steven1/rJNMeNx6Ge) | [Presentation slides](https://docs.google.com/presentation/d/1tMW9hRN2QYJFP3zAE6cJX0UMgDn-fbX7z5bvSsgt71Y/edit?usp=sharing)|
 | [Tosin](https://www.github.com/tosynthegeek) | | |
 | [Vansh](https://github.com/vanshsahay) | | |
 | [Vivek Singh Solanki](https://github.com/vivek-0509) | | |
