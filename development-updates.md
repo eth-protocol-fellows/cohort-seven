@@ -200,7 +200,7 @@ The final weeks of the cohort should mark the finalization of your project. Subm
 | [Mary](https://github.com/maryodior) | | |
 | [Mohit](https://github.com/groverInnovate) | | |
 | [Parth](https://github.com/ParthSinghPS) | | |
-| [Rahul](https://github.com/rahulbarmann/) | | |
+| [Rahul](https://github.com/rahulbarmann/) | [Final Report: Implementation of FOCIL in Lighthouse](https://hackmd.io/@rahulbarman/HkJAv3xaGx) | |
 | [Raj Gill](https://github.com/irajgill) | | |
 | [Ray](https://github.com/rayjun) | | |
 | [Richard](https://github.com/richardgreg) | | |
