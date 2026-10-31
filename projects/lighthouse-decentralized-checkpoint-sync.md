@@ -77,7 +77,7 @@ Instead, we add a dedicated post-sync background task that leverages the exact s
 
 2. **Design the backfill API** — Once nodes have the data, we need a way to request it from peers for periods they don't have locally. This is a libp2p request/response protocol, following the pattern of `LightClientDataBackfillByRange`'s spec. Key design questions already resolved by the spec:
    - Transport: libp2p req/resp
-   - Rate limiting: capped at 256 epochs per request
+   - Rate limiting: capped at 128 epochs per request
    - Proof-of-honesty: every field in the response is independently Merkle-verifiable by the requester, so a lying peer is detectable, not merely trusted
 
 3. **Pass the spec tests** — There are test vectors in the consensus-specs repo. The goal is to make Lighthouse generate the expected outputs for all periods it has state for, not just the current one.
@@ -89,51 +89,47 @@ Instead, we add a dedicated post-sync background task that leverages the exact s
 **The Problem:** Lighthouse already computes light client proofs for every block during sync, but the recency guard in `import_block_update_metrics_and_events` and the bounded channel (`LIGHT_CLIENT_SERVER_CHANNEL_CAPACITY = 32`) prevent historical data from reaching the database. Additionally, `get_light_client_bootstrap` explicitly lacks a backfill mechanism. The result: checkpoint-synced nodes cannot serve historical LC data to peers.
 
 **The Solution** 
-**Phase 1a - Local Collection:** Implement a post-sync backfill task, gated behind an explicit opt-in flag (off by default, following the existing `--archive`/`--reconstruct-historic-states` precedent). The task walks the finalized chain forward, from the node's earliest available state (per `store.get_historic_state_limits()`) toward the present. (Note: coverage is bounded by whichever `BeaconState`s the node actually retains. A checkpoint-synced, non-archive node cannot walk back to Altair; only an archive node can.) For each sync committee period, call the existing block-import light client update path — `recompute_and_cache_updates` — for every block in the period, in slot order. It already retains only the spec-best update per period via `is_better_light_client_update`, so no separate candidate-selection step is needed.
+**Phase 1a - Local Collection:** Implement a post-sync backfill task, gated behind an explicit opt-in flag (off by default, following the existing `--archive`/`--reconstruct-historic-states` precedent). The task walks the finalized chain forward, from the node's earliest available state (per `store.get_historic_state_limits()`) toward the present. (Note: coverage is bounded by whichever `BeaconState`s the node actually retains. A checkpoint-synced, non-archive node cannot walk back to Altair; only an archive node can.) For each epoch, compute and persist a full LightClientEpochData: parent_block_header, per-slot block_data for every slot in the epoch, bootstrap_data, and finalized_checkpoint, using a dedicated walker function (backfill_light_client_epoch_data). This stores every epoch’s raw data, which is what makes the data independently verifiable by a requester (Phase 1b).
 
 This task:
 - Runs only when explicitly enabled via an opt-in flag, off by default
 - Walks forward, from the node's earliest available state toward the present, to work with (not against) the `historic_state_cache`'s incremental replay
-- Is resumable via a dedicated marker, set only once every block in a period has been processed.
-- Is pausable and low-priority (yields to validator duties)
+- Is resumable via a dedicated marker (LightClientEpochBackfillProgress), set once per epoch as the walker completes it.
 - Only works for periods where the node has the `BeaconState`
-- Reuses Lighthouse's **existing** `DBColumn::LightClientUpdate` / `SyncCommitteeBranch` / `SyncCommittee` storage — this phase does not introduce a new DB column for `LightClientEpochData`. `LightClientEpochData` is a **wire/transport container** defined by the spec for the p2p endpoint below; we avoid committing local storage to a container shape that's still evolving. Note: this storage retains only the period's winning block, not per-epoch data for every slot — sufficient for Phase 1a's goal (`LightClientUpdate` history + bootstrap), but not by itself enough to serve the full `LightClientDataBackfillByRange` endpoint as specced (see Phase 1b scoping note below)
+- Introduces a new `DBColumn::LightClientEpochData`, storing the full `LightClientEpochData` container, including per-slot `block_data` for every slot in the epoch, keyed by epoch.
+- Yet to be implemented: Ispausable and low-priority i.e yields to validator duties. Currently runs to completion once started, with no priority-aware yield.
 
 **Phase 1b - P2P Serving:** Implement the `LightClientDataBackfillByRange` libp2p endpoint as specified in spec draft:
 
 ```
-/eth2/beacon_chain/req/light_client_data_backfill_by_range/0/
+/eth2/beacon_chain/req/light_client_epoch_data_by_range/1/
 
 Request:  (start_epoch: Epoch, count: uint64)
 Response: List[LightClientEpochData, MAX_REQUEST_LIGHT_CLIENT_EPOCH_DATA]
-MAX_REQUEST_LIGHT_CLIENT_EPOCH_DATA := 256
+MAX_REQUEST_LIGHT_CLIENT_EPOCH_DATA := 128
 ```
 
 Implementation follows the pattern of the existing `handle_light_client_updates_by_range` handler in `network_beacon_processor::rpc_methods.rs`:
-- Validate the request (count ≤ 256, `start_epoch` and range must be finalized)
-- Query stored `LightClientUpdate`/`SyncCommitteeBranch` data for the requested range and assemble each `LightClientEpochData` response entry
+- Validate the request (count ≤ 128, `start_epoch` and range must be finalized)
+- Read `LightClientEpochData` directly from `DBColumn::LightClientEpochData` for the requested range
 - Stream responses back via `SendResponse`
 
-`LightClientEpochData` contains per-epoch raw block data (`sync_committee_bits`, `sync_aggregate_branch`, `finalized_checkpoint`) plus a nested `bootstrap_data: LightClientBootstrapData` container (`current_sync_committee`, `current_sync_committee_branch`, `execution_block_hash`, `execution_branch`) — everything a receiver needs to independently simulate `is_better_update` and verify the canonical best update for a period.
+`LightClientEpochData` contains `epoch`, `parent_block_header`, per-slot `block_data` (one `LightClientBlockData` entry per slot in the epoch, `proposer_index`, `state_root`, `sync_committee_bits`, `sync_committee_signature_root`, `sync_aggregate_branch`), a nested `bootstrap_data`: `LightClientBootstrapData` container (`current_sync_committee`, `current_sync_committee_branch`, `execution_block_hash`, `execution_branch`), and `finalized_checkpoint`/`finalized_checkpoint_branch`, everything a receiver needs to independently simulate `is_better_update` and verify the canonical best update for a period.
 
-Key constraints:
+**Key constraints:**
 - Only serves finalized data
 - Fork context determined from last non-empty `block_data[i]` (or `epoch` if all empty)
-- Response size capped at `MAX_REQUEST_LIGHT_CLIENT_EPOCH_DATA := 256` epochs per request.
+- Response size capped at `MAX_REQUEST_LIGHT_CLIENT_EPOCH_DATA := 128` epochs per request.
 
-**Storage scoping decision:** Phase 1a's storage (`LightClientUpdate`/`SyncCommitteeBranch`/`SyncCommittee`) retains only the winning block per sync committee period — not per-slot data for every epoch in that period. The `LightClientDataBackfillByRange` endpoint as drafted requests by individual `epoch`, and each `LightClientEpochData` response is expected to contain full per-slot `block_data` for that epoch, including epochs that did not win their period's `is_better_light_client_update` comparison. This is a real granularity gap: the endpoint's purpose (per the spec: "verifying every single field... then simulating is_better_update") is to let the requester independently recompute which block was best, rather than trust the server's selection — which requires access to the non-winning epochs' raw data too.
+**Endpoint scope:** Phase 1a’s storage persists full per-slot `block_data` for every epoch, including epochs that didn’t win their period’s `is_better_light_client_update` comparison, so the `LightClientEpochDataByRange` endpoint can serve the full container as specced, letting the requester independently recompute which block was best rather than trust the server’s selection.
 
-**MVP endpoint scope:** Phase 1a's storage (`LightClientUpdate`/`SyncCommitteeBranch`/`SyncCommittee`) retains only the winning block per sync committee period — not per-slot data for every epoch in that period. The `LightClientDataBackfillByRange` endpoint as specced requests by individual `epoch`, with each `LightClientEpochData` response expected to contain full per-slot `block_data`, including epochs that didn't win their period's `is_better_light_client_update` comparison — because the endpoint's purpose is letting the requester independently recompute which block was best, not trust the server's selection.
-
-**For this project's MVP, Phase 1b serves period-best `LightClientUpdate` history** rather than the full per-epoch `LightClientEpochData` container. This requires no new storage, ships against the existing consensus-specs `light_client_data_collection` test format, and fits the project timeline. The trade-off: a requester has to trust the server's "best block" selection rather than independently verify it from raw per-epoch data.
-
-**Future work (not being built in this project):** Full per-slot storage for every backfilled epoch, matching the endpoint as specced — roughly 256x more records than the MVP (1 per sync committee period → 1 per epoch, 256 epochs/period). Jeff is independently investigating this for Prysm; worth coordinating with him rather than designing it twice. This would also need to mirror whatever storage shape Nimbus settles on, given the spec is still evolving.
+Phase 1b serves the full per-epoch `LightClientEpochData` container, with no trust-the-server trade-off.
 
 **Testing (Phase 1a/1b):**
 
 1. **Unit tests**
    - `recompute_and_cache_updates` produces a correct `LightClientUpdate` and `SyncCommitteeBranch` for a known-good historical period
-   - Constructing `LightClientEpochData` from stored `LightClientUpdate`/`SyncCommitteeBranch` data round-trips correctly against the container spec
+   - `LightClientEpochData::new`’s fork-dispatch constructs the correct variant per fork and round-trips correctly via SSZ.
    - Best-candidate selection picked correctly across a period with missed slots, using the full `is_better_light_client_update` ranking.
 
 2. **Integration tests**
@@ -147,7 +143,7 @@ Key constraints:
 
 4. **P2P endpoint tests**
    - Peer requests an epoch range and receives the expected `LightClientEpochData` list
-   - Requests over `MAX_REQUEST_LIGHT_CLIENT_EPOCH_DATA` (256) are rejected
+   - Requests over `MAX_REQUEST_LIGHT_CLIENT_EPOCH_DATA` (128) are rejected
    - Fork context is correctly derived from the last non-empty `block_data[i]`, falling back to `epoch` when the whole range is empty
    - Requests for unfinalized data are rejected
 
