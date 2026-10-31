@@ -180,7 +180,7 @@ The final weeks of the cohort should mark the finalization of your project. Subm
 | [Aarish](https://github.com/aarishnaiyer) | | |
 | [Abhivansh](https://github.com/akronim26) | [Light Client Protocol in Teku](https://hackmd.io/@astaxxoo/HJdb9g6hMe) | |
 | [Aiden](https://github.com/sgtSong) | | |
-| [Arsh](https://github.com/ArshLabs) | | |
+| [Arsh](https://github.com/ArshLabs) | [Final Report: Pureth in Reth](https://hackmd.io/@arshlabs/r1c8rz-6Ge) | |
 | [Astrion](https://github.com/astrion-coder) | | |
 | [Ayush](https://github.com/0xAysh/) | | |
 | [Blessing](https://github.com/dicethedev/) | | |
