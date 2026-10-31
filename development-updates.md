@@ -198,7 +198,7 @@ The final weeks of the cohort should mark the finalization of your project. Subm
 | [Kris](https://github.com/krisoshea-eth/) | | |
 | [Marko](https://github.com/markolazic01) | [Final Update](https://hackmd.io/@lqzic/epf-7-final-update) | |
 | [Mary](https://github.com/maryodior) | | |
-| [Mohit](https://github.com/groverInnovate) | | |
+| [Mohit](https://github.com/groverInnovate) | [Final Report: Ream BlackBox Interop Testing](https://hackmd.io/@groverInnovate/SkmMspzpGe) | |
 | [Parth](https://github.com/ParthSinghPS) | | |
 | [Rahul](https://github.com/rahulbarmann/) | [Final Report: Implementation of FOCIL in Lighthouse](https://hackmd.io/@rahulbarman/HkJAv3xaGx) | |
 | [Raj Gill](https://github.com/irajgill) | | |
