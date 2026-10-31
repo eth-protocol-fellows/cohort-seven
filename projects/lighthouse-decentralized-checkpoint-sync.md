@@ -214,8 +214,7 @@ Connect the verified acquisition path to Lighthouse’s existing checkpoint init
 
 ### Phase 3: State Snap Sync — BeaconStatePartsByRange (Aarish)
 
-Implement the state chunking protocol as specified:
-
+Implements the state chunking protocol as specified:
 ```
 /eth2/beacon_chain/req/beacon_state_parts_by_range/0/
 
@@ -223,17 +222,21 @@ Request:  (start_chunk: uint64, count: uint64)
 Response: List[BeaconStatePart, MAX_REQUEST_BEACON_STATE_PARTS]
 MAX_REQUEST_BEACON_STATE_PARTS := 16
 ```
-
 `BeaconStatePart` contains:
-- `chunk_index: uint64`
-- `data: ProgressiveByteList` — the actual chunk
-- `branch: ProgressiveList[Bytes32]` — Merkle proof
 
-Chunking is deterministic per chunk ID based on `ListSummary` fields. Each list has a defined "items per chunk" (e.g., validators: 2^12 per chunk, balances: 2^16 per chunk). Target: <0.5 MB per chunk.
+ - `chunk_index: uint64`
+ - `data: ProgressiveByteList` — the actual chunk
+ - `branch: ProgressiveList[Bytes32]` — Merkle proof
 
-The first chunk of a `ProgressiveList` contains all smaller subtrees that fit completely within the items-per-chunk budget. For example, if items-per-chunk is 32, the first chunk contains 1+4+16 = 21 items, and subsequent chunks contain 32 items each.
+`ListSummary`, `BeaconStateSummary`, `BeaconStateSnapshot`, and `BeaconStatePart` are implemented in `consensus/types/src/beacon_state_summary/` (draft PR [sigp/lighthouse#9917](https://github.com/sigp/lighthouse/pull/9917)), with an end-to-end test proving `BeaconStateSummary` reproduces a real `BeaconStateGloas`’s `hash_tree_root` exactly.
 
-The node fetches the `BeaconStateSnapshot` first (Phase 2), then requests parts by range, verifies each chunk's Merkle proof against the summary, and reassembles the full state.
+Chunking is deterministic per chunk index, based on each field’s `items_per_chunk` (e.g., validators: 2^12 per chunk, balances: 2^16 per chunk, targeting <0.5 MB per chunk). A `ProgressiveList`’s first chunk is irregular: it folds together every small early subtree that fits completely within the items-per-chunk budget (e.g. for items-per-chunk = 32, the first chunk holds 1+4+16 = 21 items), since a uniform stride doesn’t produce valid single-subtree proofs against the real progressive-tree structure otherwise. Every chunk after that is a clean, round items-per-chunk-sized slice. Implemented in `chunking.rs`, confirmed directly with Etan against the actual `ProgressiveMerkleHasher` algorithm.
+
+The `BeaconStatePart` data/branch generator, a from-scratch Merkle proof builder (neither milhouse nor tree_hash expose proof generation publicly, only final roots), is built and verified: it reconstructs the correct root from generated chunk data and proofs against `milhouse::List/ProgressiveList` instances, for both packed and unpacked item types.
+
+Building this surfaced a gap in `milhouse` (Lighthouse’s internal persistent collection library): no public way to get a list’s items root before length-mixing, something the endpoint handler needs. Fixed upstream in [sigp/milhouse#114](https://github.com/sigp/milhouse/pull/114), merged by Michael Sproul.
+
+The node fetches the `BeaconStateSnapshot` first (Phase 2), then requests parts by range, verifies each chunk’s Merkle proof against the summary, and reassembles the full state. Remaining: wiring the generator into the actual `beacon_state_parts_by_range` libp2p endpoint.
 
 ### Phase 4: Integration & End-to-End Testing
 
