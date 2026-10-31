@@ -199,7 +199,7 @@ The final weeks of the cohort should mark the finalization of your project. Subm
 | [Marko](https://github.com/markolazic01) | [Final Update](https://hackmd.io/@lqzic/epf-7-final-update) | |
 | [Mary](https://github.com/maryodior) | | |
 | [Mohit](https://github.com/groverInnovate) | | |
-| [Parth](https://github.com/ParthSinghPS) | | |
+| [Parth](https://github.com/ParthSinghPS) | [Final Report - Pureth in Reth: SSZ Execution Blocks](https://hackmd.io/@ParthSinghPS/SksurM1aGl) | |
 | [Rahul](https://github.com/rahulbarmann/) | [Final Report: Implementation of FOCIL in Lighthouse](https://hackmd.io/@rahulbarman/HkJAv3xaGx) | |
 | [Raj Gill](https://github.com/irajgill) | | |
 | [Ray](https://github.com/rayjun) | | |
