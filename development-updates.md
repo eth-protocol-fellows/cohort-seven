@@ -184,7 +184,7 @@ The final weeks of the cohort should mark the finalization of your project. Subm
 | [Astrion](https://github.com/astrion-coder) | | |
 | [Ayush](https://github.com/0xAysh/) | | |
 | [Blessing](https://github.com/dicethedev/) | | |
-| [Charles](https://github.com/creese) | | |
+| [Charles](https://github.com/creese) | [EPF7 Final Report: Implementing EIP-8025 Optional Execution Proofs in Grandine](https://hackmd.io/@creese/BJ4wQ4BTze) | |
 | [Conall](https://github.com/XRS-001) | | |
 | [Cristian](https://github.com/conache/) | [Final Report: Implementation of FOCIL in Lighthouse](https://hackmd.io/@conache/epf7-final-report)| |
 | [Daniel](https://github.com/perfogic) | | |
