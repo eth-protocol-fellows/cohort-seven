@@ -204,7 +204,7 @@ The final weeks of the cohort should mark the finalization of your project. Subm
 | [Raj Gill](https://github.com/irajgill) | | |
 | [Ray](https://github.com/rayjun) | | |
 | [Richard](https://github.com/richardgreg) | | |
-| [Roheemah](https://github.com/AbolareRoheemah) | | |
+| [Roheemah](https://github.com/AbolareRoheemah) | [Final Report: Decentralized CL Checkpoint Sync (Lighthouse)](https://hackmd.io/@rhorheeymarh/r1BQwhmTMx) | |
 | [Sagar](https://www.github.com/SoarinSkySagar) | | |
 | [Sameer](https://github.com/SamAg19) | | |
 | [Skas](https://www.github.com/Skanislav) | [Final update](https://skas.gwei.limo/epf/report/) | |
