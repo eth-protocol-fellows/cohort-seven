@@ -192,7 +192,7 @@ The final weeks of the cohort should mark the finalization of your project. Subm
 | [Ifeoluwa](https://github.com/owanikin) | | |
 | [Isaac](https://github.com/isaac-akhigbe) | | |
 | [Ivan A](https://github.com/IvanAnishchuk) | | |
-| [Jack CC](https://github.com/JackCC703/) | | |
+| [Jack CC](https://github.com/JackCC703/) | [Final Report](https://hackmd.io/@jackcc/epf7-final-report) | |
 | [Jeff](https://www.github.com/jeffoodchain) | | |
 | [Kimi](https://github.com/KimiWu123) | | |
 | [Kris](https://github.com/krisoshea-eth/) | | |
