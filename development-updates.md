@@ -189,7 +189,7 @@ The final weeks of the cohort should mark the finalization of your project. Subm
 | [Cristian](https://github.com/conache/) | [Final Report: Implementation of FOCIL in Lighthouse](https://hackmd.io/@conache/epf7-final-report)| |
 | [Daniel](https://github.com/perfogic) | | |
 | [Hans](https://github.com/vuonghuuhung) | | |
-| [Ifeoluwa](https://github.com/owanikin) | | |
+| [Ifeoluwa](https://github.com/owanikin) |[Final Report: Reth Partial Statefulness and State Expiry Prototype](https://hackmd.io/@ifeoluwa/S1MEiecafl) | |
 | [Isaac](https://github.com/isaac-akhigbe) | | |
 | [Ivan A](https://github.com/IvanAnishchuk) | | |
 | [Jack CC](https://github.com/JackCC703/) | | |
