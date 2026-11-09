@@ -190,7 +190,7 @@ The final weeks of the cohort should mark the finalization of your project. Subm
 | [Daniel](https://github.com/perfogic) | | |
 | [Hans](https://github.com/vuonghuuhung) | | |
 | [Ifeoluwa](https://github.com/owanikin) | | |
-| [Isaac](https://github.com/isaac-akhigbe) | | |
+| [Isaac](https://github.com/isaac-akhigbe) |[Final Update](https://hackmd.io/@isaac-akhigbe/SJIoTvyTfe) |[Presentation slides](https://docs.google.com/presentation/d/195FZaKZjrzGUR3aLMZmDF0sc4-CyftR3xs5U8ge4vcQ/edit?usp=sharing) |
 | [Ivan A](https://github.com/IvanAnishchuk) | | |
 | [Jack CC](https://github.com/JackCC703/) | | |
 | [Jeff](https://www.github.com/jeffoodchain) | | |
