@@ -28,6 +28,7 @@ To create a project, write your proposal based on [template](./project-template.
 | [Post-Quantum Stealth Addresses as an ERC-5564 Scheme Extension](./pq-sap.md) | [Skas](https://github.com/Skanislav) |
 | [Pureth in Reth: SSZ Execution Blocks and Query Language](./pureth-in-reth.md) | [Arsh](https://github.com/ArshLabs), [Parth Singh](https://github.com/ParthSinghPS) |
 | [Ream BlackBox Interop Testing](./Ream-BlackBosx-Interop-Testing.md) | [Mohit](https://github.com/groverInnovate) |
+| [Ream: Beacon Sync Modernization and PeerDAS Sampling](./ream-sync-and-peerdas-sampling.md) | [Alok](https://github.com/alok-108) |
 | [Ream: Execution Layer Integration for the Lean Chain](./ream-el-integration.md) | [Soham](https://github.com/zemse), [Sahil](https://github.com/Sahilgill24) |
 | [REST-SSZ Engine API in Lighthouse](./rest-ssz-lighthouse.md) | [Sameer](https://github.com/SamAg19) |
 | [Reth: Partial Statefulness and State Expiry Prototype](./reth-partial-statefulness-and-state-expiry.md) | [Ifeoluwa](https://github.com/owanikin) |
