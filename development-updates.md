@@ -178,7 +178,7 @@ The final weeks of the cohort should mark the finalization of your project. Subm
 | Name/GH | Final Report | Project Presentation |
 | ------- | ------------ | -------------------- |
 | [Aarish](https://github.com/aarishnaiyer) | | |
-| [Abhivansh](https://github.com/akronim26) | [Light Client Protocol in Teku](https://hackmd.io/@astaxxoo/HJdb9g6hMe) | |
+| [Abhivansh](https://github.com/akronim26) | [Light Client Protocol in Teku](https://hackmd.io/@astaxxoo/HJdb9g6hMe) | [Presentation Slides](https://docs.google.com/presentation/d/1VgGWmuJfpAYD7SozdCbr4ZjnfizsDIUlCviNgnF8m9o/edit?usp=sharing) |
 | [Aiden](https://github.com/sgtSong) | | |
 | [Arsh](https://github.com/ArshLabs) | | |
 | [Astrion](https://github.com/astrion-coder) | | |
