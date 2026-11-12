@@ -204,7 +204,7 @@ The final weeks of the cohort should mark the finalization of your project. Subm
 | [Raj Gill](https://github.com/irajgill) | | |
 | [Ray](https://github.com/rayjun) | | |
 | [Richard](https://github.com/richardgreg) | [Final Update](https://hackmd.io/@gregcardo/BJDFbGLnzx) | [Presentation slides](https://docs.google.com/presentation/d/1UVWKU5nav0hQ24TcU0BPgH9jJj6gieOL/edit?usp=sharing&ouid=118017249789119508399&rtpof=true&sd=true) |
-| [Roheemah](https://github.com/AbolareRoheemah) | | |
+| [Roheemah](https://github.com/AbolareRoheemah) | [Final Report: Decentralized CL Checkpoint Sync (Lighthouse)](https://hackmd.io/@rhorheeymarh/r1BQwhmTMx) | |
 | [Sagar](https://www.github.com/SoarinSkySagar) | [FOCIL in Erigon](https://hackmd.io/@SoarinSkySagar/SJVr1cbAGe), [Grandine Lean Client Development](https://hackmd.io/@SoarinSkySagar/BkAcN5-RMx) | [Erigon](https://docs.google.com/presentation/d/1USsS7eKJ6iOxtjyNGjN7Rb8acqLBgBLDGg--lTDvwIM), [Grandine Lean](https://docs.google.com/presentation/d/193zP8QQebK4pfGd6r-ZAvt13wytecfFV8c-uk2Mv07A) |
 | [Sameer](https://github.com/SamAg19) | | |
 | [Skas](https://www.github.com/Skanislav) | [Final update](https://skas.gwei.limo/epf/report/) | |
