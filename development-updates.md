@@ -182,7 +182,7 @@ The final weeks of the cohort should mark the finalization of your project. Subm
 | [Aiden](https://github.com/sgtSong) | | |
 | [Arsh](https://github.com/ArshLabs) | | |
 | [Astrion](https://github.com/astrion-coder) | [Final Report: EIP-8435](https://hackmd.io/@Astrion/SkwpEt_6zl) | [Slides](https://astrion-coder.github.io/epf_final_presentation_eip_8435/) |
-| [Ayush](https://github.com/0xAysh/) | | |
+| [Ayush](https://github.com/0xAysh/) | [Final Report](https://hackmd.io/@0xAysh/epf-final-report) | |
 | [Blessing](https://github.com/dicethedev/) | | |
 | [Charles](https://github.com/creese) | [EPF7 Final Report: Implementing EIP-8025 Optional Execution Proofs in Grandine](https://hackmd.io/@creese/BJ4wQ4BTze) | |
 | [Conall](https://github.com/XRS-001) | | |
