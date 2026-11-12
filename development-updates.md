@@ -208,7 +208,7 @@ The final weeks of the cohort should mark the finalization of your project. Subm
 | [Sagar](https://www.github.com/SoarinSkySagar) | [FOCIL in Erigon](https://hackmd.io/@SoarinSkySagar/SJVr1cbAGe), [Grandine Lean Client Development](https://hackmd.io/@SoarinSkySagar/BkAcN5-RMx) | [Erigon](https://docs.google.com/presentation/d/1USsS7eKJ6iOxtjyNGjN7Rb8acqLBgBLDGg--lTDvwIM), [Grandine Lean](https://docs.google.com/presentation/d/193zP8QQebK4pfGd6r-ZAvt13wytecfFV8c-uk2Mv07A) |
 | [Sameer](https://github.com/SamAg19) | | |
 | [Skas](https://www.github.com/Skanislav) | [Final update](https://skas.gwei.limo/epf/report/) | |
-| [Soham](https://github.com/zemse) | | |
+| [Soham](https://github.com/zemse) | [Final Report: Ream EL Integration](https://hackmd.io/@zemse/SkEXNUfTMg) | |
 | [Steven](https://github.com/stevemilk) |[Final report: snapshot-layer components for Erigon's federated history network](https://hackmd.io/@steven1/rJNMeNx6Ge) | [Presentation slides](https://docs.google.com/presentation/d/1tMW9hRN2QYJFP3zAE6cJX0UMgDn-fbX7z5bvSsgt71Y/edit?usp=sharing)|
 | [Tosin](https://www.github.com/tosynthegeek) | | |
 | [Vansh](https://github.com/vanshsahay) | [Final Report](https://hackmd.io/@vanshsahay/Hk2xy9bTMl) | |
