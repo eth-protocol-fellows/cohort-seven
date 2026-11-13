@@ -194,6 +194,7 @@ The final weeks of the cohort should mark the finalization of your project. Subm
 | [Ivan A](https://github.com/IvanAnishchuk) | [Final Report](https://ivananishchuk.github.io/eth-protocol-fellowship/updates/2026-11-04-final-report/) | |
 | [Jack CC](https://github.com/JackCC703/) | [Final Report](https://hackmd.io/@jackcc/epf7-final-report) | |
 | [Jeff](https://www.github.com/jeffoodchain) | | |
+| [Keshav](https://www.github.com/keshavsharma25) | [Final Report](https://hackmd.io/@keshav0x/HkOqwfSTGx) | [Presentation slides](https://docs.google.com/presentation/d/124UHJj5P0XghjOROCzpKfW73HBUrLDoMR6NbAhRo2xE/edit?usp=sharing) |
 | [Kimi](https://github.com/KimiWu123) | | |
 | [Kris](https://github.com/krisoshea-eth/) | | |
 | [Marko](https://github.com/markolazic01) | [Final Update](https://hackmd.io/@lqzic/epf-7-final-update) | |
