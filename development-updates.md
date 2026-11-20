@@ -192,7 +192,7 @@ The final weeks of the cohort should mark the finalization of your project. Subm
 | [Ifeoluwa](https://github.com/owanikin) |[Final Report: Reth Partial Statefulness and State Expiry Prototype](https://hackmd.io/@ifeoluwa/S1MEiecafl) | |
 | [Isaac](https://github.com/isaac-akhigbe) |[Final Update](https://hackmd.io/@isaac-akhigbe/SJIoTvyTfe) |[Presentation slides](https://docs.google.com/presentation/d/195FZaKZjrzGUR3aLMZmDF0sc4-CyftR3xs5U8ge4vcQ/edit?usp=sharing) |
 | [Ivan A](https://github.com/IvanAnishchuk) | [Final Report](https://ivananishchuk.github.io/eth-protocol-fellowship/updates/2026-11-04-final-report/) | [EPF Day talk](https://youtu.be/fXTMcOmOcS8) ([slides](https://ivananishchuk.github.io/eth-protocol-fellowship/slides/etheorem-epf-day-deck.pdf)) |
-| [Jack CC](https://github.com/JackCC703/) | [Final Report](https://hackmd.io/@jackcc/epf7-final-report) | |
+| [Jack CC](https://github.com/JackCC703/) | [Final Report](https://hackmd.io/@jackcc/epf7-final-report) | [Presentation slides](https://docs.google.com/presentation/d/1XTd1DX8xt6hc2GRWcKbslgqWNBwSrD1NwXS9xg7mbuw/edit?usp=drive_link) |
 | [Jeff](https://www.github.com/jeffoodchain) | | |
 | [Keshav](https://www.github.com/keshavsharma25) | [Final Report](https://hackmd.io/@keshav0x/HkOqwfSTGx) | [Presentation slides](https://docs.google.com/presentation/d/124UHJj5P0XghjOROCzpKfW73HBUrLDoMR6NbAhRo2xE/edit?usp=sharing) |
 | [Kimi](https://github.com/KimiWu123) | | |
