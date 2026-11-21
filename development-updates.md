@@ -180,7 +180,7 @@ The final weeks of the cohort should mark the finalization of your project. Subm
 | [Aarish](https://github.com/aarishnaiyer) | [Final Report : Decentralized CL Checkpoint Sync in Lighthouse](https://hackmd.io/@aarishnaiyer/rJw_iOUTzg)| |
 | [Abhivansh](https://github.com/akronim26) | [Light Client Protocol in Teku](https://hackmd.io/@astaxxoo/HJdb9g6hMe) | [Presentation Slides](https://docs.google.com/presentation/d/1VgGWmuJfpAYD7SozdCbr4ZjnfizsDIUlCviNgnF8m9o/edit?usp=sharing) |
 | [Aiden](https://github.com/sgtSong) | | |
-| [Arsh](https://github.com/ArshLabs) | [Final Report: Pureth in Reth](https://hackmd.io/@arshlabs/r1c8rz-6Ge) | |
+| [Arsh](https://github.com/ArshLabs) | [Final Report: Pureth in Reth](https://hackmd.io/@arshlabs/r1c8rz-6Ge) | [Presentation slides](https://docs.google.com/presentation/d/1upXTKKv3e041lz1GKv9ExOeIm52wvPIL/view)  |
 | [Astrion](https://github.com/astrion-coder) | [Final Report: EIP-8435](https://hackmd.io/@Astrion/SkwpEt_6zl) | [Slides](https://astrion-coder.github.io/epf_final_presentation_eip_8435/) |
 | [Ayush](https://github.com/0xAysh/) | [Final Report](https://hackmd.io/@0xAysh/epf-final-report) | |
 | [Blessing](https://github.com/dicethedev/) | | |
@@ -200,7 +200,7 @@ The final weeks of the cohort should mark the finalization of your project. Subm
 | [Marko](https://github.com/markolazic01) | [Final Update](https://hackmd.io/@lqzic/epf-7-final-update) | |
 | [Mary](https://github.com/maryodior) | | |
 | [Mohit](https://github.com/groverInnovate) | [Final Report: Ream BlackBox Interop Testing](https://hackmd.io/@groverInnovate/SkmMspzpGe) | |
-| [Parth](https://github.com/ParthSinghPS) | [Final Report - Pureth in Reth: SSZ Execution Blocks](https://hackmd.io/@ParthSinghPS/SksurM1aGl) | |
+| [Parth](https://github.com/ParthSinghPS) | [Final Report - Pureth in Reth: SSZ Execution Blocks](https://hackmd.io/@ParthSinghPS/SksurM1aGl)  | [Presentation slides](https://docs.google.com/presentation/d/1upXTKKv3e041lz1GKv9ExOeIm52wvPIL/view) |
 | [Rahul](https://github.com/rahulbarmann/) | [Final Report: Implementation of FOCIL in Lighthouse](https://hackmd.io/@rahulbarman/HkJAv3xaGx) | [Presentation slides](https://docs.google.com/presentation/d/1otr16_US7gJzcgEkPOglAOcItCO0VX1QNzw560iSrVM/edit?usp=sharing) |
 | [Raj Gill](https://github.com/irajgill) | | |
 | [Ray](https://github.com/rayjun) | | |
